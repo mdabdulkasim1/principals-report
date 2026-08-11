@@ -42,18 +42,22 @@ Change the port with `PORT=8080 node server.js`.
 - **Submit to Chairman** — locks the report into the Chairman's review queue. If the Chairman *returns* it, the principal can edit and resubmit.
 
 ### Chairman (Admin)
-- **Dashboard** — KPI tiles (schools, average across schools, total students below 40%, reports awaiting review), a **per-school card** for each school, an **overall-average trend chart**, a **students-below-40% comparison chart**, a **submission tracker** (who submitted which month), and a recent-reports list.
+- **Dashboard** — two rows of KPI tiles (schools, average across schools, students below 40%, awaiting review, **Abacus classes**, **Abacus doing well**, **Olympiad exams scheduled**, **schools at board risk**), a **per-school card** for each school (with Abacus / Olympiad / board-readiness chips), an **overall-average trend chart**, a **students-below-40% comparison chart**, a **submission tracker** (who submitted which month), and a recent-reports list.
 - **Reports** — view any school's report (read-only), **print / save as PDF**, add **review remarks**, and **Mark as Reviewed** or **Return for changes**.
 - **Schools** — add and rename schools.
 - **Users** — add principals, reset passwords, enable/disable or delete accounts.
 
 ---
 
-## The report — 13 sections
+## The report — 15 sections
 
-1. Executive Summary · 2. Grade-Wise Performance (1–8) · 3. Subject-Wise Analysis (6–8) · 4. Primary Section (1–5) · 5. Nursery Section · 6. Periodic Test · 7. Syllabus Completion · 8. Slow Learner Monitoring · 9. Grade 9 Special Monitoring · 10. Teacher Accountability · 11. Best Teacher of the Month · 12. Discipline & Engagement · 13. Action Plan — plus a Principal/Chairman signature block.
+1. Executive Summary · 2. Grade-Wise Performance (1–8) · 3. Subject-Wise Analysis (6–8) · 4. Primary Section (1–5) · 5. Nursery Section · 6. Periodic Test · 7. Syllabus Completion · 8. Slow Learner Monitoring · 9. **Special Monitoring (Grade 9 – 11)** · 10. Teacher Accountability · 11. Best Teacher of the Month · 12. Discipline & Engagement · 13. **External / Competitive Exams (Olympiads)** · 14. **Abacus Programme** · 15. Action Plan — plus a signature block with **Location/Place** and Principal/Chairman.
 
-**Auto-calculated fields** (you never type these): the School summary row, executive-summary figures, Section 6's students-below-40% count, Section 8 totals, and each teacher's total/rank in Section 11.
+- **Section 9 – Special Monitoring** covers Grade 9, 10 and 11, each with its own board/exam-readiness status and a "Not Applicable" toggle for grades that haven't started.
+- **Section 13 – External Exams** comes pre-loaded with the major olympiads (SOF's IMO/NSO/IEO/IGKO/NCO, Indian Talent Olympiad, Unified Council's NSTSE/UCO/UIEO, HBCSE), each with a registration status and scheduled/exam date. Add or remove exams as needed.
+- **Section 14 – Abacus Programme** records, grade by grade, classes conducted, students enrolled, and how many are performing well (with totals).
+
+**Auto-calculated fields** (you never type these): the School summary row, executive-summary figures, Section 6's students-below-40% count, Section 8 totals, each teacher's total/rank in Section 11, and the Abacus totals in Section 14.
 
 ---
 

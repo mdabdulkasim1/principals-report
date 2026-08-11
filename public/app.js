@@ -165,6 +165,22 @@
       }
       wrap.appendChild(strip);
 
+      // Second KPI row — Abacus, Olympiads, Board readiness
+      var strip2 = h("div", { class: "kpi-strip" });
+      if (isAdmin) {
+        strip2.appendChild(kpiTile("Abacus classes", d.totals.abacusClasses || 0, "🧮"));
+        strip2.appendChild(kpiTile("Abacus doing well", d.totals.abacusWell || 0, "🌟", "good"));
+        strip2.appendChild(kpiTile("Olympiad exams scheduled", d.totals.olympiadsScheduled || 0, "🏅"));
+        strip2.appendChild(kpiTile("Schools at board risk", d.totals.boardRisk || 0, "🎓", d.totals.boardRisk > 0 ? "warn" : "good"));
+      } else {
+        var c2 = d.schoolCards[0] || {};
+        strip2.appendChild(kpiTile("Abacus classes", c2.abacusClasses != null ? c2.abacusClasses : "—", "🧮"));
+        strip2.appendChild(kpiTile("Abacus doing well", c2.abacusWell != null ? c2.abacusWell : "—", "🌟", "good"));
+        strip2.appendChild(kpiTile("Olympiads scheduled", c2.olympiadsScheduled != null ? c2.olympiadsScheduled : "—", "🏅"));
+        strip2.appendChild(kpiTile("Board readiness", c2.boardReadiness || "—", "🎓", c2.boardReadiness === "High Risk" ? "warn" : "good"));
+      }
+      wrap.appendChild(strip2);
+
       // School cards
       if (isAdmin) {
         var cards = h("div", { class: "school-cards" });
@@ -221,12 +237,20 @@
         scMetric("< 40%", c.below40 != null ? c.below40 : "—"),
         scMetric("Syllabus", c.syllabusAvg != null ? c.syllabusAvg + "%" : "—"),
       ]),
+      h("div", { class: "sc-chips" }, [
+        chip("🧮 Abacus", c.abacusClasses != null ? c.abacusClasses + " classes" : "—"),
+        chip("🏅 Olympiads", c.olympiadsScheduled != null ? c.olympiadsScheduled + " scheduled" : "—"),
+        c.boardReadiness ? chip("🎓 Board", c.boardReadiness, c.boardReadiness === "High Risk" ? "risk" : "") : null,
+      ]),
       h("div", { class: "sc-foot" }, [
         trendEl,
         c.bestTeacher ? h("span", { class: "sc-note" }, ["★ Best teacher: " + c.bestTeacher.name]) : null,
         c.latestReportId ? h("a", { class: "link", href: "#/reports/" + c.latestReportId }, ["Open latest report →"]) : null,
       ]),
     ]);
+  }
+  function chip(label, value, tone) {
+    return h("span", { class: "sc-chip " + (tone || "") }, [h("b", null, [label + ": "]), value]);
   }
   function scMetric(label, value) {
     return h("div", { class: "sc-metric" }, [h("div", { class: "scm-value" }, [String(value)]), h("div", { class: "scm-label" }, [label])]);

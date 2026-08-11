@@ -379,6 +379,11 @@ function buildDashboard(data, me) {
       bestGrade: latest ? latest.kpis.bestGrade : null,
       weakGrade: latest ? latest.kpis.weakGrade : null,
       bestTeacher: latest ? latest.kpis.bestTeacher : null,
+      abacusClasses: latest ? latest.kpis.abacusClasses : null,
+      abacusWell: latest ? latest.kpis.abacusWell : null,
+      olympiadsRegistered: latest ? latest.kpis.olympiadsRegistered : null,
+      olympiadsScheduled: latest ? latest.kpis.olympiadsScheduled : null,
+      boardReadiness: latest ? latest.kpis.boardReadiness : null,
       trend,
       reportCount: srep.length,
     };
@@ -429,6 +434,10 @@ function buildDashboard(data, me) {
         return vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
       })(),
       studentsBelow40: schoolCards.reduce((s, c) => s + (c.below40 || 0), 0),
+      abacusClasses: schoolCards.reduce((s, c) => s + (c.abacusClasses || 0), 0),
+      abacusWell: schoolCards.reduce((s, c) => s + (c.abacusWell || 0), 0),
+      olympiadsScheduled: schoolCards.reduce((s, c) => s + (c.olympiadsScheduled || 0), 0),
+      boardRisk: schoolCards.filter((c) => c.boardReadiness === "High Risk").length,
     },
   };
 }

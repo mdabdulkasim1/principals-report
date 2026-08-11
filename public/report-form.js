@@ -16,8 +16,24 @@ window.ReportForm = (function () {
   var NURSERY_CLASSES = ["Nursery", "JKG", "SKG"];
   var SYLLABUS_GRADES = ["Pre-KG", "JKG", "SKG", "Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8"];
   var SLOW_GRADES = ["Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8"];
-  var G9_ROWS = 6;
+  var SM_GRADES = [9, 10, 11]; // special monitoring grades
+  var SM_ROWS = 6;
+  var ABACUS_GRADES = ["Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8"];
   var ACTIVITY_SECTIONS = ["Nursery", "Grade 1 to 5", "Grade 6 to 8"];
+  // Seeded from "Major Olympiad Organizations in India"
+  var OLYMPIAD_DEFAULTS = [
+    { exam: "IMO – Int'l Mathematics Olympiad", org: "SOF", grades: "3 – 11" },
+    { exam: "NSO – National Science Olympiad", org: "SOF", grades: "3 – 11" },
+    { exam: "IEO – English Olympiad", org: "SOF", grades: "1 – 11" },
+    { exam: "IGKO – General Knowledge Olympiad", org: "SOF", grades: "1 – 11" },
+    { exam: "NCO – Cyber Olympiad", org: "SOF", grades: "3 – 11" },
+    { exam: "Indian Talent Olympiad (Math/Sci/Eng/GK/Comp)", org: "Indian Talent Olympiad", grades: "1 – 11" },
+    { exam: "NSTSE", org: "Unified Council", grades: "1 – 11" },
+    { exam: "UCO", org: "Unified Council", grades: "1 – 11" },
+    { exam: "UIEO", org: "Unified Council", grades: "1 – 11" },
+    { exam: "Math / Physics / Chemistry / Biology Olympiad", org: "HBCSE (TIFR)", grades: "8 – 11" },
+  ];
+  var OLYMPIAD_STATUS = ["Not Started", "School Registered", "Students Enrolled", "Fees Paid", "Completed"];
 
   function el(tag, attrs, children) {
     var n = document.createElement(tag);
@@ -73,10 +89,12 @@ window.ReportForm = (function () {
     buildPeriodicTest();
     buildSyllabus();
     buildSlowLearner();
-    buildG9();
+    buildSpecialMonitoring();
     buildTeacher();
     buildBestTeacher();
     buildDiscipline();
+    buildExternalExams();
+    buildAbacus();
     buildActionPlan();
     buildSignatures();
 
@@ -85,7 +103,7 @@ window.ReportForm = (function () {
       if (e.target.matches("input, textarea, select, [contenteditable]")) { recalc(); onChange(); }
     });
     root.addEventListener("change", function (e) {
-      if (e.target.id === "rf_g9na") toggleG9();
+      if (e.target.type === "checkbox" && /^rf_sm\d+_na$/.test(e.target.id)) toggleSM();
       if (e.target.matches("input, textarea, select")) { recalc(); onChange(); }
     });
     root.querySelectorAll("[data-add]").forEach(function (b) {
@@ -94,6 +112,7 @@ window.ReportForm = (function () {
         if (t === "teacher") q("#rf_teacher tbody").appendChild(teacherRow());
         else if (t === "bestTeacher") q("#rf_best tbody").appendChild(bestTeacherRow());
         else if (t === "action") q("#rf_action tbody").appendChild(actionRow());
+        else if (t === "extExam") q("#rf_extexam tbody").appendChild(extExamRow());
         reindex(); recalc(); onChange();
       });
     });
@@ -279,35 +298,49 @@ window.ReportForm = (function () {
     s.appendChild(t);
   }
 
-  /* ---- 9 grade 9 ---- */
-  function buildG9() {
-    var s = section("9. Grade 9 Special Monitoring");
-    s.appendChild(el("label", { class: "rf-check no-print" }, [
-      el("input", { type: "checkbox", "data-field": "g9_na", id: "rf_g9na" }),
-      " Not Applicable (Grade 9 not commenced)",
-    ]));
-    var wrap = el("div", { id: "rf_g9wrap" });
-    var t = el("table", { class: "data" });
-    t.appendChild(thead(["Subject", "Average %", "Students <50%", "Extra Coaching Hours", "Risk Category Students"]));
-    var tb = el("tbody");
-    for (var r = 0; r < G9_ROWS; r++) {
-      var p = "g9_" + r + "_";
-      tb.appendChild(el("tr", null, [
-        td(ti(p + "subject", { left: true })), td(ti(p + "avg", { numeric: true })),
-        td(ti(p + "below50", { numeric: true })), td(ti(p + "hours", { numeric: true })),
-        td(ti(p + "risk", { left: true })),
+  /* ---- 9 special monitoring: Grade 9, 10, 11 ---- */
+  function buildSpecialMonitoring() {
+    var s = section("9. Special Monitoring (Grade 9 – 11)", "board / higher-grade focus");
+    SM_GRADES.forEach(function (g) {
+      var pre = "sm" + g + "_";
+      var block = el("div", { class: "sm-block", id: "rf_smblock_" + g });
+      block.appendChild(el("div", { class: "sm-head" }, [
+        el("h3", { class: "rf-grade-h" }, ["Grade " + g]),
+        el("label", { class: "rf-check no-print" }, [
+          el("input", { type: "checkbox", "data-field": pre + "na", id: "rf_" + pre + "na" }),
+          " Not Applicable (Grade " + g + " not commenced)",
+        ]),
       ]));
-    }
-    t.appendChild(tb); wrap.appendChild(t);
-    wrap.appendChild(el("label", { class: "rf-block" }, ["Board Readiness Status: "]));
-    wrap.appendChild(sel("g9_readiness", ["Safe", "Moderate Risk", "High Risk"]));
-    s.appendChild(wrap);
-    s.appendChild(el("p", { class: "na-note", id: "rf_g9na_note" }, ["NOT APPLICABLE – Grade 9 has not commenced. Fill from the year the Grade 9 batch begins."]));
+      var wrap = el("div", { id: "rf_" + pre + "wrap" });
+      var t = el("table", { class: "data" });
+      t.appendChild(thead(["Subject", "Average %", "Students <50%", "Extra Coaching Hours", "Risk Category Students"]));
+      var tb = el("tbody");
+      for (var r = 0; r < SM_ROWS; r++) {
+        var p = pre + r + "_";
+        tb.appendChild(el("tr", null, [
+          td(ti(p + "subject", { left: true })), td(ti(p + "avg", { numeric: true })),
+          td(ti(p + "below50", { numeric: true })), td(ti(p + "hours", { numeric: true })),
+          td(ti(p + "risk", { left: true })),
+        ]));
+      }
+      t.appendChild(tb); wrap.appendChild(t);
+      wrap.appendChild(el("label", { class: "rf-block" }, ["Board / Exam Readiness Status: "]));
+      wrap.appendChild(sel(pre + "readiness", ["Safe", "Moderate Risk", "High Risk"]));
+      block.appendChild(wrap);
+      block.appendChild(el("p", { class: "na-note", id: "rf_" + pre + "na_note" }, ["NOT APPLICABLE – Grade " + g + " has not commenced. Fill from the year this batch begins."]));
+      s.appendChild(block);
+    });
   }
-  function toggleG9() {
-    var na = q("#rf_g9na").checked;
-    q("#rf_g9wrap").style.display = na ? "none" : "";
-    q("#rf_g9na_note").style.display = na ? "block" : "none";
+  function toggleSM() {
+    SM_GRADES.forEach(function (g) {
+      var cb = q("#rf_sm" + g + "_na");
+      if (!cb) return;
+      var na = cb.checked;
+      var w = q("#rf_sm" + g + "_wrap");
+      var n = q("#rf_sm" + g + "_na_note");
+      if (w) w.style.display = na ? "none" : "";
+      if (n) n.style.display = na ? "block" : "none";
+    });
   }
 
   /* ---- 10 teacher ---- */
@@ -382,9 +415,58 @@ window.ReportForm = (function () {
     at.appendChild(atb); s.appendChild(at);
   }
 
-  /* ---- 13 action plan ---- */
+  /* ---- 13 external / competitive exams (olympiads) ---- */
+  function buildExternalExams() {
+    var s = section("13. External / Competitive Exams (Olympiads & Assessments)", "as per participating bodies");
+    var t = el("table", { class: "kv" }); var tb = el("tbody");
+    tb.appendChild(el("tr", null, [el("th", null, ["Olympiad / Exam Coordinator"]), el("td", null, [ti("ext_coordinator", { placeholder: "e.g. Academic Head / Math HOD" })])]));
+    tb.appendChild(el("tr", null, [el("th", null, ["Overall Participation Status"]), el("td", null, [sel("ext_overall", ["Planning", "Registration Open", "Registered", "Exams Scheduled", "Completed", "Not Participating"])])]));
+    t.appendChild(tb); s.appendChild(t);
+
+    var et = el("table", { class: "data", id: "rf_extexam" });
+    et.appendChild(thead(["Exam", "Organization", "Grades", "Registration Status", "Scheduled / Exam Date", "Students Registered", "Remarks", ""], true));
+    et.appendChild(el("tbody"));
+    s.appendChild(et);
+    s.appendChild(el("button", { type: "button", class: "btn small add no-print", "data-add": "extExam" }, ["+ Add exam"]));
+    // seed default olympiad list
+    var body = et.querySelector("tbody");
+    OLYMPIAD_DEFAULTS.forEach(function (d) { body.appendChild(extExamRow(d)); });
+  }
+  function extExamRow(d) {
+    d = d || {};
+    var st = sel(null, OLYMPIAD_STATUS, d.status || "Not Started"); st.dataset.role = "examstatus"; st.removeAttribute("data-field");
+    return el("tr", { class: "dyn" }, [
+      dcell(d.exam, true), dcell(d.org, true), dcell(d.grades), el("td", null, [st]),
+      dcell(d.date), dcell(d.registered, false, true), dcell(d.remarks, true), delCell(),
+    ]);
+  }
+
+  /* ---- 14 abacus programme ---- */
+  function buildAbacus() {
+    var s = section("14. Abacus Programme", "grade-wise progress");
+    var t = el("table", { class: "data", id: "rf_abacus" });
+    t.appendChild(thead(["Grade", "Classes Conducted", "Students Enrolled", "Students Performing Well", "Top Performers / Remarks"]));
+    var tb = el("tbody");
+    ABACUS_GRADES.forEach(function (g, idx) {
+      var p = "abc_" + idx + "_";
+      tb.appendChild(el("tr", null, [
+        el("td", { class: "lbl" }, [g]),
+        td(ti(p + "classes", { numeric: true, calc: "abacus" })),
+        td(ti(p + "enrolled", { numeric: true, calc: "abacus" })),
+        td(ti(p + "well", { numeric: true, calc: "abacus" })),
+        td(ti(p + "remarks", { left: true })),
+      ]));
+    });
+    t.appendChild(tb);
+    t.appendChild(el("tfoot", null, [el("tr", { class: "total" }, [
+      el("th", null, ["Total"]), totalTd("abc_classes"), totalTd("abc_enrolled"), totalTd("abc_well"), el("td", null, ["—"]),
+    ])]));
+    s.appendChild(t);
+  }
+
+  /* ---- 15 action plan ---- */
   function buildActionPlan() {
-    var s = section("13. Action Plan for Next Month");
+    var s = section("15. Action Plan for Next Month");
     var t = el("table", { class: "data", id: "rf_action" });
     t.appendChild(thead(["#", "Action Point", "Responsibility", "Target Date", ""], true));
     t.appendChild(el("tbody"));
@@ -399,10 +481,17 @@ window.ReportForm = (function () {
 
   /* ---- signatures ---- */
   function buildSignatures() {
-    var s = el("section", { class: "rf-section rf-sign" });
+    var wrapper = el("section", { class: "rf-section" });
+    var loc = el("div", { class: "rf-locbar" }, [
+      el("label", { class: "rf-metafield" }, ["Location / Place", ti("sign_location", { placeholder: "e.g. Cheranmahadevi" })]),
+      el("label", { class: "rf-metafield" }, ["Report Date", ti("sign_reportDate", { placeholder: "e.g. 03 February 2026" })]),
+    ]);
+    wrapper.appendChild(loc);
+    var s = el("div", { class: "rf-sign" });
     s.appendChild(signBox("Prepared and Submitted by", "sign_principal", "Principal name", "Principal", "sign_principalDate"));
     s.appendChild(signBox("Received / Reviewed by", "sign_chairman", "Chairman", "Chairman", "sign_chairmanDate"));
-    root.appendChild(s);
+    wrapper.appendChild(s);
+    root.appendChild(wrapper);
   }
   function signBox(top, nameField, ph, role, dateField) {
     return el("div", { class: "sign-box" }, [
@@ -517,6 +606,18 @@ window.ReportForm = (function () {
     var ranked = scored.filter(function (r) { return r.any; }).slice().sort(function (a, b) { return b.total - a.total; });
     scored.forEach(function (r) { r.tr.querySelector(".bt-rank").textContent = "—"; });
     ranked.forEach(function (r, i) { r.tr.querySelector(".bt-rank").textContent = ordinal(i + 1); });
+
+    // ---- Abacus totals ----
+    var abC = [], abE = [], abW = [];
+    for (var a = 0; a < ABACUS_GRADES.length; a++) {
+      var ap = "abc_" + a + "_";
+      var c = num(val(ap + "classes")); if (c != null) abC.push(c);
+      var e = num(val(ap + "enrolled")); if (e != null) abE.push(e);
+      var w = num(val(ap + "well")); if (w != null) abW.push(w);
+    }
+    setTotal("abc_classes", abC.length ? sum(abC) : null);
+    setTotal("abc_enrolled", abE.length ? sum(abE) : null);
+    setTotal("abc_well", abW.length ? sum(abW) : null);
   }
 
   /* ================= get / set ================= */
@@ -537,6 +638,12 @@ window.ReportForm = (function () {
       var t = tr.querySelectorAll("input[data-dyn]");
       state.actions.push({ point: t[0].value, responsibility: t[1].value, target: t[2].value });
     });
+    state.externalExams = [];
+    root.querySelectorAll("#rf_extexam tbody tr").forEach(function (tr) {
+      var t = tr.querySelectorAll("input[data-dyn]");
+      var st = tr.querySelector('select[data-role="examstatus"]');
+      state.externalExams.push({ exam: t[0].value, org: t[1].value, grades: t[2].value, status: st ? st.value : "", date: t[3].value, registered: t[4].value, remarks: t[5].value });
+    });
     return state;
   }
 
@@ -551,10 +658,11 @@ window.ReportForm = (function () {
     rebuild("#rf_teacher tbody", state.teachers, teacherRow);
     rebuild("#rf_best tbody", state.bestTeachers, bestTeacherRow);
     rebuild("#rf_action tbody", state.actions, actionRow);
+    rebuild("#rf_extexam tbody", (state.externalExams && state.externalExams.length ? state.externalExams : OLYMPIAD_DEFAULTS), extExamRow);
     if (state.teachers) root.querySelectorAll("#rf_teacher tbody tr").forEach(function (tr, i) {
       var s = tr.querySelector('select[data-role="lessonPlan"]'); if (s && state.teachers[i]) s.value = state.teachers[i].lessonPlan || "Yes";
     });
-    toggleG9(); reindex(); recalc();
+    toggleSM(); reindex(); recalc();
     if (readOnly) lockDown();
   }
   function rebuild(selc, arr, factory) {
