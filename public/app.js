@@ -56,7 +56,6 @@
       return api("schools");
     }).then(function (r) {
       state.schools = r.schools;
-      if (state.user.mustChangePassword) { location.hash = "#/account"; }
       route();
     }).catch(function () {
       renderLogin();
@@ -730,7 +729,7 @@
         h("div", { class: "cred-row" }, [h("span", null, ["Password"]), h("code", null, [password])]),
         h("div", { class: "cred-actions" }, [
           h("button", { class: "btn small", onclick: function () { copyText(text); } }, ["📋 Copy"]),
-          h("span", { class: "cred-hint" }, ["Share this with the principal. They'll be asked to change it at first login."]),
+          h("span", { class: "cred-hint" }, ["Share this with the principal. They can change it anytime under Account."]),
         ]),
       ]);
     }
@@ -764,9 +763,6 @@
   function renderAccount() {
     var wrap = h("div", { class: "view" });
     wrap.appendChild(h("div", { class: "page-head" }, [h("h1", null, ["My Account"])]));
-    if (state.user.mustChangePassword) {
-      wrap.appendChild(h("div", { class: "card remark-note" }, ["Please set a new password before continuing."]));
-    }
     var cur = h("input", { type: "password", placeholder: "Current password" });
     var nw = h("input", { type: "password", placeholder: "New password (min 6 chars)" });
     var cf = h("input", { type: "password", placeholder: "Confirm new password" });
