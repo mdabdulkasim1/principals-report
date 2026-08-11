@@ -1,72 +1,98 @@
-# Monthly Principal Academic Report
+# Principal Academic Report Portal
 
-A standalone web app for preparing the **Monthly Principal Academic Report** submitted to the Chairman. It reproduces all 13 sections of the school's official specimen, auto-calculates the totals and averages, saves your work in the browser, and prints/exports a clean PDF for submission.
+A multi-school web portal for the **Monthly Principal Academic Report**. Principals log in and fill/submit their school's report each month; the Chairman logs in as an **Admin** to review every school's reports and track KPIs on a dashboard.
 
-Built to match the *AKB School of Excellence* specimen (the school name and place are editable, so it works for any school).
+Built to match the *AKB School of Excellence* specimen (all 13 sections), and designed to work for **multiple schools**.
 
-## Running it
+- **Chairman (Admin)** — sees all schools, a KPI dashboard, reviews and returns reports, and manages schools & principal accounts.
+- **Principals** — each tied to one school; create, save, and submit that school's monthly 13-section report.
 
-No installation, build step, or server needed.
+No external dependencies. Runs on Node.js (built-in modules only) and stores data in a local JSON file.
 
-1. Open **`index.html`** in any modern browser (Chrome, Edge, Firefox, Safari).
-2. Fill in the fields. Your data is saved automatically in that browser.
-3. Click **Print / Save PDF** and choose *Save as PDF* to produce the document for the Chairman.
+---
 
-To host it (optional), put the three files on any static web host or an internal server — there is no backend.
+## Quick start
 
-## Files
+```bash
+node server.js
+```
 
-| File | Purpose |
-|------|---------|
-| `index.html` | Page structure — the 13 report sections and the toolbar |
-| `styles.css` | Screen and print (A4) styling |
-| `app.js` | Table generation, auto-calculations, save/load, import/export |
+Then open **http://localhost:3000**.
 
-## The 13 sections
+On the very first run the database is seeded with these accounts (change the passwords after signing in):
 
-1. **Executive Summary** — key figures (several fields auto-fill from the data below)
-2. **Grade-Wise Academic Performance Summary** (Grades 1–8, with an auto School row)
-3. **Subject-Wise Performance Analysis** (Grades 6–8)
-4. **Primary Section Summary** (Grades 1–5)
-5. **Nursery Section Summary** (Nursery / JKG / SKG)
-6. **Periodic Test / Assessment Report**
-7. **Syllabus Completion Status**
-8. **Slow Learner Monitoring** (with auto totals)
-9. **Grade 9 Special Monitoring** (tick *Not Applicable* until the Grade 9 batch begins)
-10. **Teacher Academic Accountability** (add as many teachers as needed)
-11. **Best Teacher of the Month** (totals and ranks calculated automatically)
-12. **Academic Discipline & Engagement**
-13. **Action Plan for Next Month**
+| Role | Username | Password | School |
+|------|----------|----------|--------|
+| Chairman (Admin) | `chairman` | `Chairman@123` | — (all schools) |
+| Principal | `principal.akb` | `Principal@123` | AKB School of Excellence |
+| Principal | `principal.school2` | `Principal@123` | Second School (rename in the app) |
 
-Plus a signature block for the Principal and the Chairman.
+> The second school is a placeholder — sign in as the Chairman, open **Schools**, and rename it. You can also add more schools and principals from the **Users** page.
 
-## What is calculated automatically
+Change the port with `PORT=8080 node server.js`.
 
-Fields marked **AUTO** are computed live — you never type them:
+---
 
-- **School row** in Section 2 — overall average (mean of grade averages), highest, lowest, total students below 40%, and average attendance.
-- **Executive Summary** — overall school average, best/weakest performing grade, best/weakest subject overall (aggregated across the subject tables), and total students below 40%.
-- **Section 6** — number of students below 40% (mirrors Section 2).
-- **Section 8** — total students below 40%, total remedial hours, and average improvement.
-- **Section 11** — each teacher's total out of 100 and their rank.
+## What each role can do
 
-Percentages are shown to one decimal place, following the specimen's guidance.
+### Principal
+- **Dashboard** — their school's latest average, attendance, students below 40%, syllabus completion, and a trend chart.
+- **New Report** — fills the full 13-section monthly report. Headline figures (school average, best/weakest grade & subject, students below 40%, teacher ranks) are **calculated automatically** as they type.
+- **Save draft** — keep working across sessions.
+- **Submit to Chairman** — locks the report into the Chairman's review queue. If the Chairman *returns* it, the principal can edit and resubmit.
 
-## Saving your work
+### Chairman (Admin)
+- **Dashboard** — KPI tiles (schools, average across schools, total students below 40%, reports awaiting review), a **per-school card** for each school, an **overall-average trend chart**, a **students-below-40% comparison chart**, a **submission tracker** (who submitted which month), and a recent-reports list.
+- **Reports** — view any school's report (read-only), **print / save as PDF**, add **review remarks**, and **Mark as Reviewed** or **Return for changes**.
+- **Schools** — add and rename schools.
+- **Users** — add principals, reset passwords, enable/disable or delete accounts.
 
-- **Save / Load** — keeps a copy in this browser's local storage (also saved automatically as you type).
-- **Export file** — downloads a `.json` backup you can keep or move to another computer.
-- **Import file** — loads a previously exported `.json` back into the form.
-- **Clear** — wipes the current data (export a backup first if you need it).
+---
 
-> Browser storage is per-browser and per-device. To keep a permanent record or move between devices, use **Export file** and store the `.json` somewhere safe.
+## The report — 13 sections
 
-## Producing a month's report
+1. Executive Summary · 2. Grade-Wise Performance (1–8) · 3. Subject-Wise Analysis (6–8) · 4. Primary Section (1–5) · 5. Nursery Section · 6. Periodic Test · 7. Syllabus Completion · 8. Slow Learner Monitoring · 9. Grade 9 Special Monitoring · 10. Teacher Accountability · 11. Best Teacher of the Month · 12. Discipline & Engagement · 13. Action Plan — plus a Principal/Chairman signature block.
 
-1. Enter the month, academic year, and your name at the top.
-2. Fill Sections 2–13. The AUTO fields update as you go.
-3. Review the Executive Summary — it should reflect the figures you entered.
-4. **Print / Save PDF**, then email the PDF to the Chairman.
-5. **Export file** to archive that month's data.
+**Auto-calculated fields** (you never type these): the School summary row, executive-summary figures, Section 6's students-below-40% count, Section 8 totals, and each teacher's total/rank in Section 11.
 
-For the next month, either clear the form and start fresh, or edit last month's data and re-export under a new name.
+---
+
+## Data & KPIs
+
+Each report stores its raw entries plus a compact **KPI** summary (overall average, attendance, students below 40%, syllabus %, slow-learner improvement, best/weakest grade & subject, best teacher). The dashboard aggregates these across schools and months.
+
+All data lives in **`data/db.json`** (created on first run, ignored by git). Passwords are hashed with `scrypt`; sessions are HTTP-only cookies.
+
+**Back up** by copying the `data/` folder. To reset everything, stop the server and delete `data/`.
+
+---
+
+## Project structure
+
+```
+server.js            HTTP server + REST API + role checks
+lib/
+  db.js              JSON-file store (atomic writes)
+  auth.js            scrypt password hashing + cookie sessions
+  kpi.js             derives KPIs from report data
+  seed.js            first-run schools + accounts
+public/
+  index.html         SPA shell
+  app.css            all styling (screen + A4 print)
+  app.js             SPA: login, routing, dashboard, reports, admin
+  report-form.js     the reusable 13-section report form
+  charts.js          dependency-free SVG line/bar charts
+```
+
+---
+
+## Deploying so principals can log in from their schools
+
+The app is a single Node process; host it anywhere that runs Node 18+:
+
+- Set a fixed `PORT` and put it behind HTTPS (a reverse proxy such as Nginx/Caddy, or a platform like Render/Railway/Fly).
+- Set `SECURE_COOKIE=1` when served over HTTPS so the session cookie is marked `Secure`.
+- Keep the `data/` directory on persistent storage (or a mounted volume) so reports survive restarts.
+- Optionally set `DATA_DIR=/path/to/persistent/data`.
+
+That's all — no database server or build step required.
