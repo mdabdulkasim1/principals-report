@@ -8,17 +8,17 @@
 window.ReportForm = (function () {
   "use strict";
 
-  var GRADES_1_8 = [1, 2, 3, 4, 5, 6, 7, 8];
+  var GRADES_ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   var SECONDARY_GRADES = [6, 7, 8];
   var SECONDARY_SUBJECTS = ["English", "Tamil", "Hindi", "Arabic", "History", "Mathematics", "Science", "Geography"];
   var PRIMARY_GRADES = [1, 2, 3, 4, 5];
   var PRIMARY_SUBJECTS = ["English", "Tamil", "Hindi", "Arabic", "English Language", "Mathematics", "Science", "Lead / Other Activities"];
   var NURSERY_CLASSES = ["Nursery", "JKG", "SKG"];
-  var SYLLABUS_GRADES = ["Pre-KG", "JKG", "SKG", "Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8"];
-  var SLOW_GRADES = ["Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8"];
-  var SM_GRADES = [9, 10, 11]; // special monitoring grades
+  var SYLLABUS_GRADES = ["Pre-KG", "JKG", "SKG", "Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8", "Grade-9", "Grade-10", "Grade-11", "Grade-12"];
+  var SLOW_GRADES = ["Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8", "Grade-9", "Grade-10", "Grade-11", "Grade-12"];
+  var SM_GRADES = [9, 10, 11, 12]; // special monitoring grades
   var SM_ROWS = 6;
-  var ABACUS_GRADES = ["Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8"];
+  var ABACUS_GRADES = ["Grade-1", "Grade-2", "Grade-3", "Grade-4", "Grade-5", "Grade-6", "Grade-7", "Grade-8", "Grade-9", "Grade-10", "Grade-11", "Grade-12"];
   var ACTIVITY_SECTIONS = ["Nursery", "Grade 1 to 5", "Grade 6 to 8"];
   // Seeded from "Major Olympiad Organizations in India"
   var OLYMPIAD_DEFAULTS = [
@@ -178,7 +178,7 @@ window.ReportForm = (function () {
     var t = el("table", { class: "data", id: "rf_grade" });
     t.appendChild(thead(["Grade", "Overall Average %", "Highest %", "Lowest %", "Students <40%", "Attendance %"]));
     var tb = el("tbody");
-    GRADES_1_8.forEach(function (g) {
+    GRADES_ALL.forEach(function (g) {
       var p = "gs_" + g + "_";
       tb.appendChild(el("tr", null, [
         el("td", { class: "lbl" }, [String(g)]),
@@ -541,7 +541,7 @@ window.ReportForm = (function () {
 
   function recalc() {
     var avgs = [], highs = [], lows = [], belows = [], atts = [];
-    GRADES_1_8.forEach(function (g) {
+    GRADES_ALL.forEach(function (g) {
       var a = num(val("gs_" + g + "_avg")); if (a != null) avgs.push(a);
       var h = num(val("gs_" + g + "_high")); if (h != null) highs.push(h);
       var l = num(val("gs_" + g + "_low")); if (l != null) lows.push(l);
@@ -558,7 +558,7 @@ window.ReportForm = (function () {
 
     setAuto("es_overall", schoolAvg != null ? schoolAvg + " %" : "—");
     var best = null, weak = null;
-    GRADES_1_8.forEach(function (g) {
+    GRADES_ALL.forEach(function (g) {
       var a = num(val("gs_" + g + "_avg")); if (a == null) return;
       if (!best || a > best.v) best = { g: g, v: a };
       if (!weak || a < weak.v) weak = { g: g, v: a };

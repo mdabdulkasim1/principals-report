@@ -53,7 +53,8 @@ Change the port with `PORT=8080 node server.js`.
 
 1. Executive Summary · 2. Grade-Wise Performance (1–8) · 3. Subject-Wise Analysis (6–8) · 4. Primary Section (1–5) · 5. Nursery Section · 6. Periodic Test · 7. Syllabus Completion · 8. Slow Learner Monitoring · 9. **Special Monitoring (Grade 9 – 11)** · 10. Teacher Accountability · 11. Best Teacher of the Month · 12. Discipline & Engagement · 13. **External / Competitive Exams (Olympiads)** · 14. **Abacus Programme** · 15. Action Plan — plus a signature block with **Location/Place** and Principal/Chairman.
 
-- **Section 9 – Special Monitoring** covers Grade 9, 10 and 11, each with its own board/exam-readiness status and a "Not Applicable" toggle for grades that haven't started.
+- Grade lists run up to **Grade 12**: the Grade-Wise Summary (Section 2), Slow Learner Monitoring (Section 8), Syllabus Completion (Section 7) and Abacus (Section 14) all include grades through 12. Grades a school doesn't run are simply left blank and are ignored in every average/total.
+- **Section 9 – Special Monitoring** covers Grade 9, 10, 11 and 12, each with its own board/exam-readiness status and a "Not Applicable" toggle for grades that haven't started.
 - **Section 13 – External Exams** comes pre-loaded with the major olympiads (SOF's IMO/NSO/IEO/IGKO/NCO, Indian Talent Olympiad, Unified Council's NSTSE/UCO/UIEO, HBCSE), each with a registration status and scheduled/exam date. Add or remove exams as needed.
 - **Section 14 – Abacus Programme** records, grade by grade, classes conducted, students enrolled, and how many are performing well (with totals).
 
