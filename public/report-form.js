@@ -58,8 +58,38 @@ window.ReportForm = (function () {
     if (o.numeric) i.setAttribute("inputmode", "decimal");
     if (o.calc) i.setAttribute("data-calc", o.calc);
     if (o.subject) i.setAttribute("data-subject", o.subject);
+    if (o.list) i.setAttribute("list", o.list);
     if (o.placeholder) i.setAttribute("placeholder", o.placeholder);
     return i;
+  }
+
+  /* Shared pick-lists (type-or-choose) to speed up repetitive text entry */
+  var PICKLISTS = {
+    rf_dl_actions: [
+      "Continue as per plan", "Maintain present pace", "Remedial 2 hrs/week", "Remedial 3 hrs/week",
+      "Remedial 4 hrs/week", "Daily 30-min remedial", "Bridge course – basic operations",
+      "Bridge course on fractions and integers", "Special coaching 6 hrs/week", "Weekly dictation",
+      "Weekly spelling drill", "Comprehension practice", "Peer reading pairs formed", "Extra grammar worksheet",
+      "Map marking test every fortnight", "Diagram and map practice", "Answer-writing practice",
+      "Practical record completion", "Lab demonstration", "Mental maths drill daily", "Reading log maintained",
+      "Parents informed", "Revision worksheets issued", "Oral recitation practice", "Puzzle-based practice",
+    ],
+    rf_dl_correction: ["Up to date", "1 set pending", "2 sets pending", "3 sets pending", "Behind schedule"],
+    rf_dl_subjects: ["English", "Tamil", "Hindi", "Arabic", "History", "Geography", "Mathematics", "Science", "English Language", "Social Science", "Computer", "EVS"],
+    rf_dl_sections: ["Grade 1 – 5", "Grade 6 – 8", "Grade 6 – 9", "Grade 6 – 12", "Grade 9 – 12", "Primary Class Teacher", "Nursery / KG", "Grade 1", "Grade 2", "Grade 3"],
+    rf_dl_yesno: ["Yes", "No"],
+    rf_dl_yesdetail: ["Yes", "No", "Yes – moderated by subject heads", "Yes – completed", "Yes – all sections"],
+    rf_dl_g9risk: ["N/A (not yet started)", "N/A", "Safe", "Moderate Risk", "High Risk"],
+    rf_dl_parents: ["Parents informed", "Parents called", "Parent meeting held", "PTM discussion done"],
+  };
+  function buildDatalists() {
+    var host = el("div", { style: "display:none" });
+    Object.keys(PICKLISTS).forEach(function (id) {
+      var dl = el("datalist", { id: id });
+      PICKLISTS[id].forEach(function (v) { dl.appendChild(el("option", { value: v })); });
+      host.appendChild(dl);
+    });
+    root.appendChild(host);
   }
   function sel(field, opts, current) {
     var s = el("select", { "data-field": field });
@@ -97,6 +127,7 @@ window.ReportForm = (function () {
     buildAbacus();
     buildActionPlan();
     buildSignatures();
+    buildDatalists();
 
     // events
     root.addEventListener("input", function (e) {
@@ -163,7 +194,7 @@ window.ReportForm = (function () {
     row("Best Subject Overall", [autoSpan("es_bestSubject")]);
     row("Weakest Subject Overall", [autoSpan("es_weakSubject")]);
     row("Students Below 40% (Total)", [autoSpan("es_below40"), document.createTextNode(" out of "), ti("es_totalStudents", { numeric: true, placeholder: "total" }), document.createTextNode(" students")]);
-    row("Grade 9 Risk Category Students", [ti("es_g9risk", { placeholder: "N/A if Grade 9 not started" })]);
+    row("Grade 9 Risk Category Students", [ti("es_g9risk", { list: "rf_dl_g9risk", placeholder: "N/A if Grade 9 not started" })]);
     row("Syllabus Completion Status", [sel("es_syllabus", ["On Track", "Slight Delay", "Major Delay"]), ti("es_syllabusNote", { placeholder: "details" })]);
     t.appendChild(tb);
     s.appendChild(t);
@@ -214,7 +245,7 @@ window.ReportForm = (function () {
           td(ti(p + "high", { numeric: true })),
           td(ti(p + "low", { numeric: true })),
           td(ti(p + "below", { numeric: true })),
-          td(ti(p + "action", { left: true })),
+          td(ti(p + "action", { left: true, list: "rf_dl_actions" })),
         ]));
       });
       t.appendChild(tb);
@@ -247,7 +278,7 @@ window.ReportForm = (function () {
     function row(th, td) { tb.appendChild(el("tr", null, [el("th", null, [th]), el("td", null, td)])); }
     row("PT conducted this month – Date(s)", [ti("pt_date", { placeholder: "e.g. 16-01-2026 to 21-01-2026" })]);
     row("Blueprint followed (CBSE pattern)?", [sel("pt_blueprint", ["Yes", "No"])]);
-    row("Question paper moderation done?", [ti("pt_moderation", { placeholder: "e.g. Yes – moderated by subject heads" })]);
+    row("Question paper moderation done?", [ti("pt_moderation", { list: "rf_dl_yesdetail", placeholder: "e.g. Yes – moderated by subject heads" })]);
     row("Average school score: Nursery to Grade 1", [ti("pt_avg1", { numeric: true }), document.createTextNode(" %")]);
     row("Average school score: Grade 2 to 5", [ti("pt_avg2", { numeric: true }), document.createTextNode(" %")]);
     row("Average school score: Grade 6 to 9", [ti("pt_avg3", { numeric: true }), document.createTextNode(" %")]);
@@ -358,8 +389,8 @@ window.ReportForm = (function () {
     var lp = sel(null, ["Yes", "No"], d.lessonPlan || "Yes"); lp.dataset.role = "lessonPlan"; lp.removeAttribute("data-field");
     var tr = el("tr", { class: "dyn" }, [
       el("td", { class: "ridx" }, []),
-      dcell(d.name, true), dcell(d.subject, true), dcell(d.section, true), dcell(d.avg, false, true),
-      el("td", null, [lp]), dcell(d.correction, true), dcell(d.remarks, true), delCell(),
+      dcell(d.name, true), dcell(d.subject, true, false, null, "rf_dl_subjects"), dcell(d.section, true, false, null, "rf_dl_sections"), dcell(d.avg, false, true),
+      el("td", null, [lp]), dcell(d.correction, true, false, null, "rf_dl_correction"), dcell(d.remarks, true), delCell(),
     ]);
     return tr;
   }
@@ -394,9 +425,9 @@ window.ReportForm = (function () {
     function row(th, td) { tb.appendChild(el("tr", null, [el("th", null, [th]), el("td", null, td)])); }
     row("Student Attendance % (Overall)", [ti("de_attendance", { numeric: true }), document.createTextNode(" %")]);
     row("Chronic Absentees", [ti("de_absentees", { placeholder: "e.g. 9 students below 60% attendance" })]);
-    row("Lab Practical Completion (Grade 6 – 8)", [ti("de_lab", { placeholder: "e.g. Yes – 14 practicals" })]);
-    row("Subject Enrichment Activities Conducted", [ti("de_enrichment")]);
-    row("PTM Conducted", [ti("de_ptm", { placeholder: "e.g. Yes – on 24-01-2026" })]);
+    row("Lab Practical Completion (Grade 6 – 8)", [ti("de_lab", { list: "rf_dl_yesdetail", placeholder: "e.g. Yes – 14 practicals" })]);
+    row("Subject Enrichment Activities Conducted", [ti("de_enrichment", { list: "rf_dl_yesno" })]);
+    row("PTM Conducted", [ti("de_ptm", { list: "rf_dl_yesdetail", placeholder: "e.g. Yes – on 24-01-2026" })]);
     row("Parent Attendance %", [ti("de_parentAtt")]);
     row("Field Trips", [ti("de_fieldtrips")]);
     row("Activities: Nursery to Grade 1", [ti("de_act1", { numeric: true })]);
@@ -513,13 +544,14 @@ window.ReportForm = (function () {
   }
   function td(child) { return el("td", null, [child]); }
   function totalTd(key) { return el("td", null, [el("span", { class: "auto", "data-total": key }, ["—"])]); }
-  function dcell(val, left, numeric, cls) {
+  function dcell(val, left, numeric, cls, list) {
     var i = el("input", { type: "text" });
     var c = [];
     if (left) c.push("text-left");
     if (cls) c.push(cls);
     if (c.length) i.className = c.join(" ");
     if (numeric) i.setAttribute("inputmode", "decimal");
+    if (list) i.setAttribute("list", list);
     if (val != null) i.value = val;
     i.dataset.dyn = "1";
     return el("td", null, [i]);

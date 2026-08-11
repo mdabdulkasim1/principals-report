@@ -514,11 +514,13 @@
     var actions = h("div", { class: "editor-actions no-print" }, [
       h("button", { class: "btn", onclick: saveDraft }, ["💾 Save draft"]),
       h("button", { class: "btn btn-primary", onclick: submitReport }, ["📤 Submit to Chairman"]),
+      !existing ? h("button", { class: "btn", title: "Copy last month's report so you only update the numbers", onclick: prefillLastMonth }, ["↩ Prefill from last month"]) : null,
       h("a", { class: "btn btn-ghost", href: "#/reports" }, ["Cancel"]),
     ]);
 
     wrap.appendChild(h("div", { class: "page-head no-print" }, [
       h("h1", null, [existing ? "Edit Report" : "New Monthly Report"]),
+      !existing ? h("div", { class: "compare-note" }, ["Tip: use ", h("b", null, ["Prefill from last month"]), " to carry over teacher names, subjects and action plans — then just update the figures. Repeating text fields also offer ", h("b", null, ["pick-lists"]), " (click the field for suggestions)."]) : null,
     ]));
     wrap.appendChild(metaBar);
     wrap.appendChild(actions);
@@ -537,6 +539,24 @@
         academicYear: yearInput.value,
         data: window.ReportForm.getData(),
       };
+    }
+    function prefillLastMonth() {
+      var schoolId = isAdmin ? (schoolSel && schoolSel.value) : state.user.schoolId;
+      if (!schoolId) { toast("Choose a school first", "err"); return; }
+      api("reports?school=" + encodeURIComponent(schoolId)).then(function (r) {
+        var list = (r.reports || []).slice().sort(function (a, b) { return (b.month || "").localeCompare(a.month || ""); });
+        if (!list.length) { toast("No previous report found for this school", "err"); return; }
+        var prev = list[0];
+        return api("reports/" + prev.id).then(function (rr) {
+          var data = rr.report.data || {};
+          // carry the academic year over; keep the month blank so it must be set fresh
+          if (rr.report.academicYear) yearInput.value = rr.report.academicYear;
+          if (data.fields) { data.fields.month = ""; data.fields.submitDate = ""; }
+          window.ReportForm.setData(data);
+          dirty = true; savedNote.textContent = "Prefilled from " + fmtMonth(prev.month) + " — update the figures"; savedNote.className = "saved-note warn";
+          toast("Loaded " + fmtMonth(prev.month) + " — update the numbers and month", "ok");
+        });
+      }).catch(function (e) { toast(e.message, "err"); });
     }
     function saveDraft() {
       var m = collectMeta();

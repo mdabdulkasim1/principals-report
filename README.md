@@ -63,6 +63,11 @@ Change the port with `PORT=8080 node server.js`.
 
 **Auto-calculated fields** (you never type these): the School summary row, executive-summary figures, Section 6's students-below-40% count, Section 8 totals, each teacher's total/rank in Section 11, and the Abacus totals in Section 14.
 
+### Faster data entry
+
+- **Prefill from last month** — on the *New Report* screen, one click copies the previous month's report (teacher names, subjects, sections, action plans, remarks, etc.) so you only update the changed figures and set the new month.
+- **Pick-lists** — repetitive text fields offer type-or-choose suggestions instead of retyping: action-plan phrases (Sections 3 & 4), teacher **Subject / Section / Correction status** (Section 10), Grade-9 risk, question-paper moderation, and the Yes/No fields in Discipline & Engagement. You can always type a custom value.
+
 ---
 
 ## Data & KPIs
