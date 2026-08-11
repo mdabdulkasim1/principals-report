@@ -16,6 +16,8 @@ const db = require("./lib/db");
 const auth = require("./lib/auth");
 const { computeKpis } = require("./lib/kpi");
 const { seedIfEmpty } = require("./lib/seed");
+const { buildXlsx } = require("./lib/xlsx");
+const { reportToSheets, dashboardToSheets, usersToSheets } = require("./lib/report-export");
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -30,6 +32,14 @@ function send(res, status, body, headers) {
 }
 function sendError(res, status, message) {
   send(res, status, { error: message });
+}
+function sendBinary(res, buf, filename) {
+  res.writeHead(200, {
+    "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Length": buf.length,
+  });
+  res.end(buf);
 }
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -326,7 +336,30 @@ async function handleApi(req, res, pathname, query) {
 
   /* ---- Dashboard ---- */
   if (seg[0] === "dashboard" && method === "GET") {
-    return send(res, 200, buildDashboard(data, me));
+    return send(res, 200, buildDashboard(data, me, query.month));
+  }
+
+  /* ---- Excel exports ---- */
+  if (seg[0] === "export" && method === "GET") {
+    if (seg[1] === "dashboard") {
+      const dash = buildDashboard(data, me, query.month);
+      const wb = buildXlsx(dashboardToSheets(dash, dash.selectedMonth));
+      return sendBinary(res, wb, `dashboard-${dash.selectedMonth || "latest"}.xlsx`);
+    }
+    if (seg[1] === "report" && seg[2]) {
+      const report = data.reports.find((r) => r.id === seg[2]);
+      if (!report) return sendError(res, 404, "Report not found");
+      if (!isAdmin && report.schoolId !== me.schoolId) return sendError(res, 403, "Forbidden");
+      const wb = buildXlsx(reportToSheets(report, schoolName(data, report.schoolId)));
+      return sendBinary(res, wb, `report-${schoolName(data, report.schoolId).replace(/[^\w]+/g, "_")}-${report.month}.xlsx`);
+    }
+    if (seg[1] === "users") {
+      if (!isAdmin) return sendError(res, 403, "Admin only");
+      const users = data.users.map((u) => ({ name: u.name, username: u.username, role: u.role, active: u.active !== false, schoolName: u.schoolId ? schoolName(data, u.schoolId) : null }));
+      const wb = buildXlsx(usersToSheets(users));
+      return sendBinary(res, wb, "users.xlsx");
+    }
+    return sendError(res, 404, "Unknown export");
   }
 
   return sendError(res, 404, "Unknown API endpoint");
@@ -348,7 +381,7 @@ function summaryOf(data, r) {
   };
 }
 
-function buildDashboard(data, me) {
+function buildDashboard(data, me, wantMonth) {
   const isAdmin = me.role === "admin";
   const schools = isAdmin ? data.schools : data.schools.filter((s) => s.id === me.schoolId);
   let reports = data.reports.filter((r) => r.status !== "draft");
@@ -356,36 +389,60 @@ function buildDashboard(data, me) {
 
   const months = Array.from(new Set(reports.map((r) => r.month))).sort();
   const latestMonth = months.length ? months[months.length - 1] : null;
+  // Selected month for the snapshot / comparison view
+  const selectedMonth = wantMonth && months.indexOf(wantMonth) > -1 ? wantMonth : latestMonth;
+  const selIdx = months.indexOf(selectedMonth);
+  const prevMonth = selIdx > 0 ? months[selIdx - 1] : null;
 
-  // Per-school latest snapshot
+  const repOf = (schoolId, month) => (month ? reports.find((r) => r.schoolId === schoolId && r.month === month) : null);
+
+  // Per-school snapshot for the SELECTED month (falls back to latest available for that school)
   const schoolCards = schools.map((s) => {
     const srep = reports.filter((r) => r.schoolId === s.id).sort((a, b) => a.month.localeCompare(b.month));
-    const latest = srep.length ? srep[srep.length - 1] : null;
-    const prev = srep.length > 1 ? srep[srep.length - 2] : null;
+    const sel = repOf(s.id, selectedMonth) || (srep.length ? srep[srep.length - 1] : null);
+    const cmpMonth = sel ? sel.month : selectedMonth;
+    const cmpIdx = months.indexOf(cmpMonth);
+    const prev = cmpIdx > 0 ? repOf(s.id, months[cmpIdx - 1]) : null;
+    const kp = sel ? sel.kpis : {};
     const trend =
-      latest && prev && latest.kpis.overallAvg != null && prev.kpis.overallAvg != null
-        ? Math.round((latest.kpis.overallAvg - prev.kpis.overallAvg) * 10) / 10
+      sel && prev && kp.overallAvg != null && prev.kpis.overallAvg != null
+        ? Math.round((kp.overallAvg - prev.kpis.overallAvg) * 10) / 10
         : null;
     return {
       schoolId: s.id,
       name: s.name,
       place: s.place,
-      latestMonth: latest ? latest.month : null,
-      latestReportId: latest ? latest.id : null,
-      overallAvg: latest ? latest.kpis.overallAvg : null,
-      attendance: latest ? latest.kpis.attendance : null,
-      below40: latest ? latest.kpis.below40 : null,
-      syllabusAvg: latest ? latest.kpis.syllabusAvg : null,
-      bestGrade: latest ? latest.kpis.bestGrade : null,
-      weakGrade: latest ? latest.kpis.weakGrade : null,
-      bestTeacher: latest ? latest.kpis.bestTeacher : null,
-      abacusClasses: latest ? latest.kpis.abacusClasses : null,
-      abacusWell: latest ? latest.kpis.abacusWell : null,
-      olympiadsRegistered: latest ? latest.kpis.olympiadsRegistered : null,
-      olympiadsScheduled: latest ? latest.kpis.olympiadsScheduled : null,
-      boardReadiness: latest ? latest.kpis.boardReadiness : null,
+      latestMonth: sel ? sel.month : null,
+      latestReportId: sel ? sel.id : null,
+      overallAvg: sel ? kp.overallAvg : null,
+      attendance: sel ? kp.attendance : null,
+      below40: sel ? kp.below40 : null,
+      syllabusAvg: sel ? kp.syllabusAvg : null,
+      bestGrade: sel ? kp.bestGrade : null,
+      weakGrade: sel ? kp.weakGrade : null,
+      bestTeacher: sel ? kp.bestTeacher : null,
+      abacusClasses: sel ? kp.abacusClasses : null,
+      abacusWell: sel ? kp.abacusWell : null,
+      olympiadsRegistered: sel ? kp.olympiadsRegistered : null,
+      olympiadsScheduled: sel ? kp.olympiadsScheduled : null,
+      boardReadiness: sel ? kp.boardReadiness : null,
       trend,
       reportCount: srep.length,
+    };
+  });
+
+  // Month-on-month comparison (selected vs previous month in the list)
+  const emptyK = {};
+  const comparison = schools.map((s) => {
+    const cur = repOf(s.id, selectedMonth);
+    const prev = repOf(s.id, prevMonth);
+    return {
+      schoolId: s.id,
+      name: s.name,
+      current: cur ? cur.kpis : emptyK,
+      previous: prev ? prev.kpis : emptyK,
+      hasCurrent: !!cur,
+      hasPrevious: !!prev,
     };
   });
 
@@ -421,6 +478,9 @@ function buildDashboard(data, me) {
     role: me.role,
     months,
     latestMonth,
+    selectedMonth,
+    prevMonth,
+    comparison,
     schoolCards,
     series,
     submissionMatrix,

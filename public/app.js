@@ -94,11 +94,11 @@
     document.body.classList.remove("login-mode");
     clear(app);
     var isAdmin = state.user.role === "admin";
-    var nav = [navLink("#/dashboard", "Dashboard", activeView === "dashboard")];
-    nav.push(navLink("#/reports", "Reports", activeView === "reports"));
+    var nav = [navLink("#/dashboard", "Dashboard", activeView === "dashboard", "📊")];
+    nav.push(navLink("#/reports", "Reports", activeView === "reports", "📄"));
     if (isAdmin) {
-      nav.push(navLink("#/schools", "Schools", activeView === "schools"));
-      nav.push(navLink("#/users", "Users", activeView === "users"));
+      nav.push(navLink("#/schools", "Schools", activeView === "schools", "🏫"));
+      nav.push(navLink("#/users", "Users", activeView === "users", "👥"));
     }
     var header = h("header", { class: "topbar" }, [
       h("div", { class: "brand" }, [h("span", { class: "brand-mark" }, ["📘"]), "Academic Report Portal"]),
@@ -117,7 +117,7 @@
     main.appendChild(content);
     app.appendChild(main);
   }
-  function navLink(href, label, active) { return h("a", { href: href, class: "navlink" + (active ? " active" : "") }, [label]); }
+  function navLink(href, label, active, icon) { return h("a", { href: href, class: "navlink" + (active ? " active" : "") }, [icon ? h("span", { class: "nav-ico" }, [icon]) : null, label]); }
   function logout() { api("logout", { method: "POST" }).then(function () { location.reload(); }); }
 
   /* ---------- Router ---------- */
@@ -138,16 +138,37 @@
   }
 
   /* ================= Dashboard ================= */
-  function renderDashboard() {
-    api("dashboard").then(function (d) {
+  function renderDashboard(month) {
+    api("dashboard" + (month ? "?month=" + encodeURIComponent(month) : "")).then(function (d) {
       var isAdmin = state.user.role === "admin";
       var wrap = h("div", { class: "view" });
+
+      // Month navigation toolbar
+      var months = d.months || [];
+      var sel = d.selectedMonth;
+      var idx = months.indexOf(sel);
+      var monthSelect = h("select", { class: "month-select",
+        onchange: function () { renderDashboard(this.value); } },
+        months.slice().reverse().map(function (m) { return h("option", { value: m, selected: m === sel ? "selected" : null }, [fmtMonth(m)]); }));
+      var prevBtn = h("button", { class: "btn small", disabled: idx <= 0 ? "disabled" : null, title: "Previous month",
+        onclick: function () { if (idx > 0) renderDashboard(months[idx - 1]); } }, ["◀"]);
+      var nextBtn = h("button", { class: "btn small", disabled: idx < 0 || idx >= months.length - 1 ? "disabled" : null, title: "Next month",
+        onclick: function () { if (idx < months.length - 1) renderDashboard(months[idx + 1]); } }, ["▶"]);
+      var monthBar = months.length
+        ? h("div", { class: "month-bar" }, [prevBtn, h("span", { class: "month-label" }, ["🗓 "]), monthSelect, nextBtn])
+        : null;
+      var excelBtn = months.length
+        ? h("button", { class: "btn", onclick: function () { downloadFile("/api/export/dashboard?month=" + encodeURIComponent(sel || "")); } }, ["⬇ Excel"])
+        : null;
+
       wrap.appendChild(h("div", { class: "page-head" }, [
         h("h1", null, [isAdmin ? "Chairman Dashboard" : "School Dashboard"]),
         h("div", { class: "page-head-actions" }, [
+          monthBar, excelBtn,
           !isAdmin ? h("a", { class: "btn btn-primary", href: "#/reports/new" }, ["+ New Report"]) : null,
         ]),
       ]));
+      if (d.prevMonth) wrap.appendChild(h("div", { class: "compare-note" }, ["Showing ", h("b", null, [fmtMonth(sel)]), " — changes compared with ", h("b", null, [fmtMonth(d.prevMonth)]), "."]));
 
       // Top KPI strip
       var strip = h("div", { class: "kpi-strip" });
@@ -196,6 +217,11 @@
       charts.appendChild(barBox);
       wrap.appendChild(charts);
 
+      // Month-on-month comparison
+      if (d.prevMonth && d.comparison && d.comparison.length) {
+        wrap.appendChild(comparisonTable(d));
+      }
+
       // Submission matrix (admin)
       if (isAdmin && d.submissionMatrix.length) {
         wrap.appendChild(submissionTable(d));
@@ -214,6 +240,47 @@
     }).catch(function (e) { toast(e.message, "err"); });
   }
   function shortName(n) { return n.length > 16 ? n.slice(0, 15) + "…" : n; }
+  function downloadFile(url) {
+    var a = h("a", { href: url, download: "" });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+  function deltaCell(cur, prev, lowerIsBetter) {
+    if (cur == null || prev == null) return h("td", { class: "center muted" }, ["—"]);
+    var diff = Math.round((cur - prev) * 10) / 10;
+    if (diff === 0) return h("td", { class: "center" }, ["±0"]);
+    var good = lowerIsBetter ? diff < 0 : diff > 0;
+    return h("td", { class: "center delta " + (good ? "up" : "down") }, [(diff > 0 ? "▲ +" : "▼ ") + diff]);
+  }
+  function comparisonTable(d) {
+    var card = h("div", { class: "card" }, [h("h3", null, ["Month-on-month comparison  (", fmtMonth(d.selectedMonth), " vs ", fmtMonth(d.prevMonth), ")"])]);
+    var metrics = [
+      { key: "overallAvg", label: "Overall average %", lower: false },
+      { key: "attendance", label: "Attendance %", lower: false },
+      { key: "below40", label: "Students < 40%", lower: true },
+      { key: "syllabusAvg", label: "Syllabus %", lower: false },
+      { key: "abacusClasses", label: "Abacus classes", lower: false },
+    ];
+    var table = h("table", { class: "grid-table" });
+    table.appendChild(h("thead", null, [h("tr", null,
+      ["School", "Metric", fmtMonth(d.selectedMonth), fmtMonth(d.prevMonth), "Change"].map(function (c) { return h("th", null, [c]); }))]));
+    var tb = h("tbody");
+    d.comparison.forEach(function (row) {
+      metrics.forEach(function (m, i) {
+        var cur = row.current ? row.current[m.key] : null;
+        var prev = row.previous ? row.previous[m.key] : null;
+        tb.appendChild(h("tr", null, [
+          i === 0 ? h("td", { rowspan: String(metrics.length), class: "cmp-school" }, [row.name]) : null,
+          h("td", null, [m.label]),
+          h("td", { class: "center" }, [cur == null ? "—" : String(cur)]),
+          h("td", { class: "center muted" }, [prev == null ? "—" : String(prev)]),
+          deltaCell(cur, prev, m.lower),
+        ]));
+      });
+    });
+    table.appendChild(tb);
+    card.appendChild(h("div", { class: "table-scroll" }, [table]));
+    return card;
+  }
   function kpiTile(label, value, icon, tone) {
     return h("div", { class: "kpi-tile " + (tone || "") }, [
       h("div", { class: "kpi-icon" }, [icon]),
@@ -370,6 +437,7 @@
 
       var actions = [h("a", { class: "btn btn-ghost", href: "#/reports" }, ["← Back"])];
       actions.push(h("button", { class: "btn", onclick: function () { window.print(); } }, ["🖨 Print / PDF"]));
+      actions.push(h("button", { class: "btn", onclick: function () { downloadFile("/api/export/report/" + id); } }, ["⬇ Excel"]));
       if (canEdit) actions.push(h("a", { class: "btn btn-primary", href: "#/reports/" + id + "/edit-marker", onclick: function (e) { e.preventDefault(); openEditor(report); } }, ["✎ Edit"]));
 
       wrap.appendChild(h("div", { class: "page-head no-print" }, [
@@ -536,61 +604,140 @@
   function loadSchools() { return api("schools").then(function (r) { state.schools = r.schools; if ((location.hash || "").indexOf("schools") > -1) renderSchools(); }); }
 
   /* ================= Users (admin) ================= */
+  function makeUsername(name, role) {
+    var base = (name || "").toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "");
+    if (!base) base = role === "admin" ? "chairman" : "principal";
+    return base.slice(0, 20);
+  }
+  function makePassword() {
+    var upper = "ABCDEFGHJKLMNPQRSTUVWXYZ", lower = "abcdefghijkmnpqrstuvwxyz", dig = "23456789", sym = "@#$%&*";
+    function pick(s, n) { var o = ""; for (var i = 0; i < n; i++) o += s[Math.floor(Math.random() * s.length)]; return o; }
+    var raw = pick(upper, 2) + pick(lower, 4) + pick(dig, 2) + pick(sym, 1);
+    return raw.split("").sort(function () { return Math.random() - 0.5; }).join("");
+  }
   function renderUsers() {
     Promise.all([api("users"), api("schools")]).then(function (res) {
       var users = res[0].users; state.schools = res[1].schools;
       var wrap = h("div", { class: "view" });
-      wrap.appendChild(h("div", { class: "page-head" }, [h("h1", null, ["Users"])]));
+      wrap.appendChild(h("div", { class: "page-head" }, [
+        h("h1", null, [h("span", { class: "h-ico" }, ["👥"]), "Users & Credentials"]),
+        h("div", { class: "page-head-actions" }, [
+          h("button", { class: "btn", onclick: function () { downloadFile("/api/export/users"); } }, ["⬇ Excel"]),
+        ]),
+      ]));
 
       var table = h("table", { class: "grid-table" });
-      table.appendChild(h("thead", null, [h("tr", null, ["Name", "Username", "Role", "School", "Status", "Actions"].map(function (c) { return h("th", null, [c]); }))]));
+      table.appendChild(h("thead", null, [h("tr", null, ["", "Name", "Username", "Role", "School", "Status", "Actions"].map(function (c) { return h("th", null, [c]); }))]));
       var tb = h("tbody");
       users.forEach(function (u) {
         tb.appendChild(h("tr", null, [
+          h("td", { class: "center" }, [h("span", { class: "role-ico" }, [u.role === "admin" ? "👑" : "🧑‍🏫"])]),
           h("td", null, [u.name]),
-          h("td", null, [u.username]),
+          h("td", null, [h("code", null, [u.username])]),
           h("td", null, [u.role === "admin" ? "Chairman" : "Principal"]),
           h("td", null, [u.schoolName || "—"]),
-          h("td", null, [u.active ? statusBadge("reviewed") : h("span", { class: "badge b-returned" }, ["Disabled"])]),
+          h("td", null, [u.active ? h("span", { class: "badge b-reviewed" }, ["Active"]) : h("span", { class: "badge b-returned" }, ["Disabled"])]),
           h("td", null, [
-            h("button", { class: "btn small", onclick: function () { promptReset(u); } }, ["Reset password"]),
-            u.role !== "admin" ? h("button", { class: "btn small btn-warn", onclick: function () { delUser(u); } }, ["Delete"]) : null,
+            h("button", { class: "btn small", title: "Rename", onclick: function () { editName(u); } }, ["✎ Name"]),
+            h("button", { class: "btn small", onclick: function () { resetPw(u); } }, ["🔑 Password"]),
+            u.role !== "admin" ? h("button", { class: "btn small btn-warn", onclick: function () { delUser(u); } }, ["🗑"]) : null,
           ]),
         ]));
       });
       table.appendChild(tb);
       wrap.appendChild(h("div", { class: "card" }, [h("div", { class: "table-scroll" }, [table])]));
 
-      // Add principal
-      var name = h("input", { type: "text", placeholder: "Full name" });
-      var uname = h("input", { type: "text", placeholder: "Username (for login)" });
-      var pass = h("input", { type: "text", placeholder: "Temporary password" });
+      // Add principal with generate-credentials
+      var name = h("input", { type: "text", placeholder: "Full name (e.g. Mrs. C. Meena)", oninput: function () { if (!unameEdited) uname.value = makeUsername(name.value, "principal"); } });
+      var uname = h("input", { type: "text", placeholder: "auto from name" });
+      var unameEdited = false; uname.addEventListener("input", function () { unameEdited = true; });
+      var pass = h("input", { type: "text", placeholder: "click Generate →" });
       var school = h("select", null, state.schools.map(function (s) { return h("option", { value: s.id }, [s.name]); }));
+      var genBtn = h("button", { class: "btn", type: "button", onclick: function () { pass.value = makePassword(); } }, ["🎲 Generate password"]);
+      var credHost = h("div", { class: "cred-host" });
+
       wrap.appendChild(h("div", { class: "card" }, [
-        h("h3", null, ["Add a principal"]),
+        h("h3", null, ["Add a principal & generate login"]),
         h("div", { class: "add-user-grid" }, [
-          field("Name", name), field("Username", uname), field("Temp password", pass), field("School", school),
+          field("Name", name), field("Username", uname), field("Password", pass), field("School", school),
         ]),
-        h("button", { class: "btn btn-primary", onclick: function () {
-          if (!uname.value.trim() || !pass.value) { toast("Username and password required", "err"); return; }
-          api("users", { method: "POST", body: { name: name.value.trim(), username: uname.value.trim(), password: pass.value, role: "principal", schoolId: school.value } })
-            .then(function () { toast("Principal added", "ok"); renderUsers(); }).catch(function (e) { toast(e.message, "err"); });
-        } }, ["+ Add principal"]),
+        h("div", { class: "row-actions" }, [
+          genBtn,
+          h("button", { class: "btn btn-primary", onclick: function () {
+            var nm = name.value.trim(), un = (uname.value.trim() || makeUsername(nm, "principal"));
+            if (!nm) { toast("Enter a name", "err"); return; }
+            if (!pass.value) pass.value = makePassword();
+            api("users", { method: "POST", body: { name: nm, username: un, password: pass.value, role: "principal", schoolId: school.value } })
+              .then(function () {
+                var schoolNm = (state.schools.find(function (s) { return s.id === school.value; }) || {}).name || "";
+                credHost.appendChild(credCard("Principal", nm, un, pass.value, schoolNm));
+                toast("Principal added — credentials shown below", "ok");
+                name.value = ""; uname.value = ""; pass.value = ""; unameEdited = false;
+                // refresh table without wiping the credential cards
+                api("users").then(function (r) { rebuildUserTable(tb, r.users); });
+              }).catch(function (e) { toast(e.message, "err"); });
+          } }, ["+ Add principal"]),
+        ]),
+        credHost,
       ]));
 
       shell("users", wrap);
     }).catch(function (e) { toast(e.message, "err"); });
 
-    function promptReset(u) {
-      var p = prompt("Enter a new temporary password for " + u.name + " (min 6 chars):");
-      if (!p) return;
+    function rebuildUserTable(tb, users) {
+      clear(tb);
+      users.forEach(function (u) {
+        tb.appendChild(h("tr", null, [
+          h("td", { class: "center" }, [h("span", { class: "role-ico" }, [u.role === "admin" ? "👑" : "🧑‍🏫"])]),
+          h("td", null, [u.name]), h("td", null, [h("code", null, [u.username])]),
+          h("td", null, [u.role === "admin" ? "Chairman" : "Principal"]), h("td", null, [u.schoolName || "—"]),
+          h("td", null, [u.active ? h("span", { class: "badge b-reviewed" }, ["Active"]) : h("span", { class: "badge b-returned" }, ["Disabled"])]),
+          h("td", null, [
+            h("button", { class: "btn small", onclick: function () { editName(u); } }, ["✎ Name"]),
+            h("button", { class: "btn small", onclick: function () { resetPw(u); } }, ["🔑 Password"]),
+            u.role !== "admin" ? h("button", { class: "btn small btn-warn", onclick: function () { delUser(u); } }, ["🗑"]) : null,
+          ]),
+        ]));
+      });
+    }
+    function credCard(role, name, username, password, school) {
+      var text = "Login for " + name + " (" + role + (school ? " — " + school : "") + ")\nUsername: " + username + "\nPassword: " + password;
+      return h("div", { class: "cred-card" }, [
+        h("div", { class: "cred-title" }, ["✅ " + role + " login created"]),
+        h("div", { class: "cred-row" }, [h("span", null, ["Name"]), h("b", null, [name])]),
+        school ? h("div", { class: "cred-row" }, [h("span", null, ["School"]), h("b", null, [school])]) : null,
+        h("div", { class: "cred-row" }, [h("span", null, ["Username"]), h("code", null, [username])]),
+        h("div", { class: "cred-row" }, [h("span", null, ["Password"]), h("code", null, [password])]),
+        h("div", { class: "cred-actions" }, [
+          h("button", { class: "btn small", onclick: function () { copyText(text); } }, ["📋 Copy"]),
+          h("span", { class: "cred-hint" }, ["Share this with the principal. They'll be asked to change it at first login."]),
+        ]),
+      ]);
+    }
+    function editName(u) {
+      var n = prompt("New name for " + u.name + ":", u.name);
+      if (n == null || !n.trim()) return;
+      api("users/" + u.id, { method: "PUT", body: { name: n.trim() } }).then(function () { toast("Name updated", "ok"); renderUsers(); }).catch(function (e) { toast(e.message, "err"); });
+    }
+    function resetPw(u) {
+      var p = makePassword();
+      if (!confirm("Reset password for " + u.name + "?\n\nNew password will be:\n" + p + "\n\n(You can copy it from the confirmation.)")) return;
       api("users/" + u.id + "/reset-password", { method: "POST", body: { password: p } })
-        .then(function () { toast("Password reset", "ok"); }).catch(function (e) { toast(e.message, "err"); });
+        .then(function () { copyText("Login for " + u.name + "\nUsername: " + u.username + "\nPassword: " + p); toast("Password reset & copied to clipboard", "ok"); }).catch(function (e) { toast(e.message, "err"); });
     }
     function delUser(u) {
       if (!confirm("Delete user " + u.name + "? This cannot be undone.")) return;
       api("users/" + u.id, { method: "DELETE" }).then(function () { toast("User deleted", "ok"); renderUsers(); }).catch(function (e) { toast(e.message, "err"); });
     }
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast("Copied", "ok"); }, function () { fallbackCopy(t); });
+    else fallbackCopy(t);
+  }
+  function fallbackCopy(t) {
+    var ta = h("textarea", null, [t]); ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("Copied", "ok"); } catch (e) { toast("Copy failed", "err"); }
+    document.body.removeChild(ta);
   }
 
   /* ================= Account (change password) ================= */

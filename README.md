@@ -43,6 +43,9 @@ Change the port with `PORT=8080 node server.js`.
 
 ### Chairman (Admin)
 - **Dashboard** — two rows of KPI tiles (schools, average across schools, students below 40%, awaiting review, **Abacus classes**, **Abacus doing well**, **Olympiad exams scheduled**, **schools at board risk**), a **per-school card** for each school (with Abacus / Olympiad / board-readiness chips), an **overall-average trend chart**, a **students-below-40% comparison chart**, a **submission tracker** (who submitted which month), and a recent-reports list.
+- **Month record & comparison** — every submitted month is kept. A month picker with ◀ / ▶ buttons steps through history, and a **month-on-month comparison table** shows each school's key metrics for the selected month versus the previous month with ▲ / ▼ change indicators.
+- **Excel download** — one click exports to real `.xlsx`: the dashboard/comparison for a month, an individual report (multi-sheet: summary, grade-wise, teachers, best teacher, abacus, external exams), or the full user list.
+- **Users & credentials** — add a principal and **auto-generate a username and secure password** in one step; the created login is shown on a copyable card to hand to the principal (who is prompted to change it at first login). Rename users, reset passwords, enable/disable, or delete.
 - **Reports** — view any school's report (read-only), **print / save as PDF**, add **review remarks**, and **Mark as Reviewed** or **Return for changes**.
 - **Schools** — add and rename schools.
 - **Users** — add principals, reset passwords, enable/disable or delete accounts.
@@ -93,11 +96,41 @@ public/
 
 ## Deploying so principals can log in from their schools
 
-The app is a single Node process; host it anywhere that runs Node 18+:
+The app is a single Node process; host it anywhere that runs Node 18+. It reads
+`PORT` from the environment (Railway/Render/Fly set this automatically), so no
+extra config is needed to boot.
 
-- Set a fixed `PORT` and put it behind HTTPS (a reverse proxy such as Nginx/Caddy, or a platform like Render/Railway/Fly).
-- Set `SECURE_COOKIE=1` when served over HTTPS so the session cookie is marked `Secure`.
-- Keep the `data/` directory on persistent storage (or a mounted volume) so reports survive restarts.
-- Optionally set `DATA_DIR=/path/to/persistent/data`.
+### ⚠️ Railway (and any container host): make data persistent
 
-That's all — no database server or build step required.
+Container filesystems are **ephemeral** — by default `data/db.json` is **wiped
+on every redeploy or restart**, which means all reports, user accounts and
+generated logins would reset to the seed defaults. To keep your data:
+
+1. In Railway, open your service → **Variables** and add a **Volume** (Railway →
+   service → **Settings → Volumes → Add Volume**). Mount it at, for example,
+   `/data`.
+2. Add these environment **Variables**:
+   - `DATA_DIR=/data` (must match the volume mount path)
+   - `SECURE_COOKIE=1` (served over HTTPS, so the session cookie is marked `Secure`)
+3. Redeploy. From now on the database lives on the volume and survives redeploys.
+
+> Do this **before** you start entering real reports or creating principal
+> accounts — otherwise the next deploy will erase them. The seed accounts are
+> only created once, when the database is empty; on a persistent volume your
+> changed passwords and added users stick.
+
+### Other hosts
+
+- Put it behind HTTPS (a reverse proxy such as Nginx/Caddy, or a platform like
+  Render/Fly).
+- Set `SECURE_COOKIE=1` when served over HTTPS.
+- Point `DATA_DIR` at persistent storage (a mounted volume or a path that
+  survives restarts).
+
+No database server or build step required.
+
+### First-login note
+
+Sessions are held in server memory, so a restart or redeploy signs everyone out
+(they just log back in). With a persistent `DATA_DIR`, all accounts and reports
+remain intact across restarts — only the active login sessions reset.

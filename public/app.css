@@ -225,6 +225,32 @@ table.kv td select { width: auto; display: inline-block; }
 .toast.ok { background: #206b43; }
 .toast.err { background: #9c2323; }
 
+/* ---------- Icons / month bar / comparison / credentials ---------- */
+.nav-ico { margin-right: 6px; }
+.h-ico { margin-right: 8px; }
+.role-ico { font-size: 16px; }
+.page-head h1 { display: flex; align-items: center; }
+.month-bar { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; }
+.month-bar .btn.small { padding: 3px 8px; border: none; background: transparent; }
+.month-bar .btn.small:hover:not([disabled]) { background: #eef2f7; }
+.month-bar .btn[disabled] { opacity: .35; cursor: default; }
+.month-label { font-size: 13px; }
+.month-select { border: none; font: inherit; font-weight: 600; color: var(--accent); background: transparent; padding: 4px; }
+.month-select:focus { outline: none; box-shadow: none; }
+.compare-note { font-size: 13px; color: var(--muted); margin: -6px 0 16px; }
+.grid-table td.delta.up { color: var(--good); font-weight: 600; }
+.grid-table td.delta.down { color: var(--danger); font-weight: 600; }
+.grid-table td.cmp-school { font-weight: 700; background: #f7f9fc; vertical-align: middle; }
+.cred-host { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.cred-card { border: 1px solid #bfe0c8; background: var(--good-soft); border-radius: 10px; padding: 14px 16px; max-width: 440px; }
+.cred-title { font-weight: 700; color: var(--good); margin-bottom: 8px; }
+.cred-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 13px; }
+.cred-row span { color: var(--muted); }
+.cred-row code, .grid-table code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 7px; font-size: 12.5px; }
+.cred-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.cred-hint { font-size: 11.5px; color: var(--muted); }
+.row-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .kpi-strip { grid-template-columns: repeat(2, 1fr); }
