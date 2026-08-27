@@ -85,11 +85,51 @@ const MENU = [
   },
 ];
 
+/**
+ * Seed logins. The passwords here are throwaway demo values so the app is
+ * usable the moment it starts on a counter machine. Anything reachable from
+ * the internet should set the matching environment variables instead, so the
+ * first deploy is never sitting on a published default.
+ */
 const USERS = [
-  { username: "admin", name: "Owner", role: "admin", password: "admin123", pin: "1111" },
-  { username: "user1", name: "Counter 1", role: "cashier", password: "user123", pin: "2222" },
-  { username: "user2", name: "Counter 2", role: "cashier", password: "user123", pin: "3333" },
+  { username: "admin", name: "Owner", role: "admin", env: "ADMIN", password: "admin123", pin: "1111" },
+  { username: "user1", name: "Counter 1", role: "cashier", env: "USER1", password: "user123", pin: "2222" },
+  { username: "user2", name: "Counter 2", role: "cashier", env: "USER2", password: "user123", pin: "3333" },
 ];
+
+/** Environment overrides, e.g. POS_ADMIN_PASSWORD / POS_ADMIN_PIN. */
+function credentialsFor(u) {
+  const password = process.env[`POS_${u.env}_PASSWORD`];
+  const pin = process.env[`POS_${u.env}_PIN`];
+  return {
+    password: password && password.length >= 6 ? password : u.password,
+    pin: pin && /^\d{4,6}$/.test(pin) ? pin : u.pin,
+    usedDefault: !(password && password.length >= 6),
+  };
+}
+
+/**
+ * Shouts at boot if any login still has its published demo password. Cheap to
+ * run (a few scrypt checks) and the one thing worth interrupting startup for
+ * when the app is on a public URL.
+ */
+function warnIfDefaultPasswords(data) {
+  const auth = require("./auth");
+  const stale = USERS.filter((u) => {
+    const user = data.users.find((x) => x.username === u.username);
+    return user && user.active && auth.verifySecret(u.password, user.passwordHash);
+  }).map((u) => u.username);
+
+  if (!stale.length) return [];
+  console.warn(
+    "\n[pos] ================= SECURITY WARNING =================\n" +
+      `[pos] These logins still use the published demo password: ${stale.join(", ")}\n` +
+      "[pos] Anyone who finds this address can sign in and take money.\n" +
+      "[pos] Change them now in Settings -> Staff & access.\n" +
+      "[pos] ===================================================\n"
+  );
+  return stale;
+}
 
 const TABLE_COUNT = 8;
 
@@ -162,22 +202,27 @@ function seedIfEmpty() {
   }
 
   if (data.users.length === 0) {
+    let anyDefault = false;
     USERS.forEach((u) => {
+      const cred = credentialsFor(u);
+      if (cred.usedDefault) anyDefault = true;
       data.users.push({
         id: db.id(),
         username: u.username,
         name: u.name,
         role: u.role,
-        passwordHash: auth.hashSecret(u.password),
-        pinHash: auth.hashSecret(u.pin),
+        passwordHash: auth.hashSecret(cred.password),
+        pinHash: auth.hashSecret(cred.pin),
         active: true,
         createdAt: new Date().toISOString(),
       });
     });
     changed = true;
     console.log(
-      "[pos] Seeded logins — admin/admin123 (PIN 1111), user1/user123 (PIN 2222), user2/user123 (PIN 3333).\n" +
-        "[pos] Change these from Settings → Staff before going live."
+      anyDefault
+        ? "[pos] Seeded logins — admin/admin123 (PIN 1111), user1/user123 (PIN 2222), user2/user123 (PIN 3333).\n" +
+            "[pos] Change these from Settings -> Staff before going live."
+        : "[pos] Seeded logins admin, user1 and user2 using the passwords from the environment."
     );
   }
 
@@ -185,4 +230,4 @@ function seedIfEmpty() {
   return data;
 }
 
-module.exports = { seedIfEmpty, DEFAULT_SETTINGS };
+module.exports = { seedIfEmpty, warnIfDefaultPasswords, DEFAULT_SETTINGS };

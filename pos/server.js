@@ -18,7 +18,7 @@ const url = require("url");
 
 const db = require("./lib/db");
 const auth = require("./lib/auth");
-const { seedIfEmpty } = require("./lib/seed");
+const { seedIfEmpty, warnIfDefaultPasswords } = require("./lib/seed");
 const { computeTotals, money, clampQty } = require("./lib/pricing");
 const { buildReport, ordersToCsv, dateKey, todayKey } = require("./lib/reports");
 const gstin = require("./lib/gstin");
@@ -796,10 +796,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
-  seedIfEmpty();
+  const data = seedIfEmpty();
   server.listen(PORT, () => {
     console.log(`[pos] Coffeemia POS running on http://localhost:${PORT}`);
     console.log(`[pos] Data file: ${db.DB_FILE}`);
+    warnIfDefaultPasswords(data);
   });
 }
 

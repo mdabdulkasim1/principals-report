@@ -43,6 +43,9 @@ backup** — it holds the menu, rates, tables, staff and every bill.
 | `user2` | `user123` | 3333 | Counter staff |
 
 **Change all three from Settings → Staff & access before you start billing.**
+If you are hosting the app online, set the passwords through environment
+variables instead so the very first deploy is never on a published default —
+see [Putting it on the internet](#putting-it-on-the-internet).
 
 Staff can sign in with a username and password, or tap their 4-digit PIN on the
 counter tablet, which is faster at shift change.
@@ -173,6 +176,71 @@ the GST collected, so the figures are ready for a return.
 - **Payment modes** is a plain comma-separated list — add "Swiggy" or "Zomato"
   if you need them for reporting.
 - **Footer line** is the thank-you line at the bottom of every bill.
+
+## Putting it on the internet
+
+Read this first: **the counter machine is the better home for a POS.** If the
+app is hosted online and the shop's internet drops, billing stops dead — at the
+till, at the busiest hour. Run it on the counter machine (`npm run pos`) and
+every device in the shop keeps working off the local Wi-Fi even when the line
+is down.
+
+Hosting it online is still worth it if you want to see the dashboard from home,
+or run more than one branch. A good arrangement is the counter machine for
+billing and a hosted copy for reporting, rather than betting the till on the
+connection.
+
+Printing works either way: the bill is printed by the browser on the counter
+machine, so the printer never needs to reach the internet.
+
+### Railway
+
+The repo also contains the school report portal, so the POS needs its **own
+service**, not the existing one.
+
+1. Create a **new service** in Railway from this repository.
+2. Set the **Start Command** to `node pos/server.js` (Settings → Deploy). There
+   is also a ready-made `railway.pos.json` at the repo root you can point the
+   service's config file at instead.
+3. **Add a Volume** (Settings → Volumes) mounted at `/data`.
+4. Add these **Variables**:
+
+   | Variable | Value | Why |
+   | --- | --- | --- |
+   | `POS_DATA_DIR` | `/data` | must match the volume mount path |
+   | `SECURE_COOKIE` | `1` | served over HTTPS |
+   | `TZ` | `Asia/Kolkata` | so the business day ends at midnight here |
+   | `POS_ADMIN_PASSWORD` | *your own* | never deploy on the demo password |
+   | `POS_USER1_PASSWORD` | *your own* | |
+   | `POS_USER2_PASSWORD` | *your own* | |
+   | `POS_ADMIN_PIN` | *4–6 digits* | optional, for the quick PIN pad |
+
+5. Deploy, open the URL and sign in.
+
+**Do steps 3 and 4 before you take a single real bill.** A container filesystem
+is wiped on every redeploy, so without the volume your menu, rates, staff and
+the day's takings all vanish the next time the service restarts. And a POS on a
+public address with the published demo password is an open till — the server
+prints a loud warning at startup for as long as any account still has one.
+
+The seed logins are only created when the database is empty, so once the volume
+is in place your own passwords and staff stick.
+
+### Any other host
+
+Anything that runs Node 18+ works — Render, Fly, a VPS, a mini PC in the shop.
+
+- `PORT` is read from the environment; nothing else is needed to boot.
+- Point `POS_DATA_DIR` at storage that survives a restart.
+- Set `SECURE_COOKIE=1` behind HTTPS.
+- Sessions are held in memory, so a restart signs everyone out. They just sign
+  in again; nothing is lost.
+
+### Backups
+
+Whatever the host, the whole shop is one file — `pos.json` in your data
+directory. Copy it somewhere safe on a schedule. Restoring is putting the file
+back and restarting.
 
 ## Notes
 
