@@ -455,17 +455,42 @@
     const value = Math.max(0, Number(cart.discountValue) || 0);
     let discount = cart.discountType === "percent" ? (subtotal * Math.min(value, 100)) / 100 : value;
     discount = round2(Math.min(discount, subtotal));
-    const taxable = round2(subtotal - discount);
+    const afterDiscount = round2(subtotal - discount);
     const scPercent = s.serviceChargeEnabled ? Number(s.serviceChargePercent) || 0 : 0;
-    const serviceCharge = round2((taxable * scPercent) / 100);
+    const serviceCharge = round2((afterDiscount * scPercent) / 100);
     const taxPercent = s.taxEnabled ? Number(s.taxPercent) || 0 : 0;
-    const tax = round2(((taxable + serviceCharge) * taxPercent) / 100);
-    const gross = round2(taxable + serviceCharge + tax);
-    const total = s.roundOff === false ? gross : Math.round(gross);
+    const inclusive = s.taxMode !== "exclusive";
+    const rounding = (n) => (s.roundOff === false ? round2(n) : Math.round(n));
+
+    let tax, total, taxableValue, roundOff;
+    if (!taxPercent) {
+      const gross = round2(afterDiscount + serviceCharge);
+      total = round2(rounding(gross));
+      tax = 0;
+      taxableValue = total;
+      roundOff = round2(total - gross);
+    } else if (inclusive) {
+      const gross = round2(afterDiscount + serviceCharge);
+      total = round2(rounding(gross));
+      tax = round2(total - total / (1 + taxPercent / 100));
+      taxableValue = round2(total - tax);
+      roundOff = round2(total - gross);
+    } else {
+      taxableValue = round2(afterDiscount + serviceCharge);
+      tax = round2((taxableValue * taxPercent) / 100);
+      const gross = round2(taxableValue + tax);
+      total = round2(rounding(gross));
+      roundOff = round2(total - gross);
+    }
+    const cgst = round2(tax / 2);
+
     return {
       subtotal, discount, discountType: cart.discountType, discountValue: value,
-      serviceCharge, serviceChargePercent: scPercent, tax, taxPercent, taxName: s.taxName || "Tax",
-      roundOff: round2(total - gross), total: round2(total),
+      serviceCharge, serviceChargePercent: scPercent,
+      tax, taxPercent, taxName: s.taxName || "GST",
+      taxMode: taxPercent ? (inclusive ? "inclusive" : "exclusive") : "none",
+      taxableValue, cgst, sgst: round2(tax - cgst),
+      roundOff, total,
       itemCount: cart.lines.reduce((n, l) => n + l.qty, 0),
     };
   }
@@ -674,9 +699,14 @@
       '<div class="tline"><span>Subtotal (' + plural(t.itemCount, "item") + ")</span><span>" + fmt(t.subtotal) + "</span></div>" +
       (t.discount > 0 ? '<div class="tline"><span>Discount' + (t.discountType === "percent" ? " " + t.discountValue + "%" : "") + '</span><span>−' + fmt(t.discount) + "</span></div>" : "") +
       (t.serviceCharge > 0 ? '<div class="tline"><span>Service ' + t.serviceChargePercent + '%</span><span>' + fmt(t.serviceCharge) + "</span></div>" : "") +
-      (t.tax > 0 ? '<div class="tline"><span>' + esc(t.taxName) + " " + t.taxPercent + '%</span><span>' + fmt(t.tax) + "</span></div>" : "") +
+      (t.tax > 0 && t.taxMode === "exclusive"
+        ? '<div class="tline"><span>' + esc(t.taxName) + " " + t.taxPercent + '%</span><span>' + fmt(t.tax) + "</span></div>"
+        : "") +
       (t.roundOff ? '<div class="tline"><span>Round off</span><span>' + (t.roundOff > 0 ? "+" : "") + fmt(t.roundOff) + "</span></div>" : "") +
       '<div class="tline grand"><span>Total</span><span>' + fmt(t.total) + "</span></div>" +
+      (t.tax > 0 && t.taxMode === "inclusive"
+        ? '<div class="tline small" style="opacity:.75"><span>includes ' + esc(t.taxName) + " " + t.taxPercent + '%</span><span>' + fmt(t.tax) + "</span></div>"
+        : "") +
       "</div>" +
       '<div class="cart-actions">' +
       '<div class="pair">' +
@@ -1008,11 +1038,14 @@
     screen().innerHTML =
       filters +
       '<div class="kpis">' +
-      kpi("Net sales", fmt(t.gross), t.orders + (t.orders === 1 ? " bill" : " bills"), "brand") +
+      kpi("Net sales", fmt(t.gross),
+        plural(t.orders, "bill") + (t.tax ? " · " + fmt(t.taxableValue) + " before " + esc(S.settings.taxName || "GST") : ""),
+        "brand") +
       kpi("Average bill", fmt(t.average), t.itemsSold + " items sold") +
       kpi("Bills", String(t.orders), sameDay ? "settled today" : "over " + r.byDay.length + " days") +
       kpi("On the floor", fmt(t.openValue), t.openCount + (t.openCount === 1 ? " running bill" : " running bills")) +
-      kpi("Discounts", fmt(t.discount), t.cancelledCount + " cancelled · " + fmt(t.cancelledValue)) +
+      kpi(t.tax ? (S.settings.taxName || "GST") + " collected" : "Discounts", fmt(t.tax || t.discount),
+        t.tax ? fmt(t.discount) + " discounts · " + t.cancelledCount + " cancelled" : t.cancelledCount + " cancelled · " + fmt(t.cancelledValue)) +
       (r.mine ? kpi("Your counter", fmt(r.mine.amount), r.mine.orders + " bills by you") : "") +
       "</div>" +
       '<div class="two-col" style="margin-bottom:16px">' +
@@ -1440,10 +1473,20 @@
         '<label class="check"><input type="checkbox" name="roundOff"' + (s.roundOff ? " checked" : "") + "><span>Round the total to the nearest rupee</span></label>" +
         "</div></div>" +
 
-        '<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>Tax &amp; charges</h3></div><div class="card-pad">' +
-        '<label class="check"><input type="checkbox" name="taxEnabled"' + (s.taxEnabled ? " checked" : "") + "><span>Add tax to the bill</span></label>" +
+        '<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>GST &amp; charges</h3></div><div class="card-pad">' +
+        '<label class="check"><input type="checkbox" name="taxEnabled"' + (s.taxEnabled ? " checked" : "") + "><span>This shop charges GST</span></label>" +
+        '<label class="field"><span>How are the menu rates priced?</span><select name="taxMode">' +
+        '<option value="inclusive"' + (s.taxMode !== "exclusive" ? " selected" : "") + ">Rates already include GST (usual for a cafe)</option>" +
+        '<option value="exclusive"' + (s.taxMode === "exclusive" ? " selected" : "") + ">Add GST on top of the rate</option>" +
+        "</select></label>" +
         '<div class="row"><label class="field"><span>Tax name</span><input type="text" name="taxName" value="' + esc(s.taxName) + '"></label>' +
-        '<label class="field"><span>Tax %</span><input type="number" name="taxPercent" min="0" max="100" step="0.5" value="' + s.taxPercent + '"></label></div>' +
+        '<label class="field"><span>GST %</span><input type="number" name="taxPercent" min="0" max="100" step="0.5" value="' + s.taxPercent + '"></label></div>' +
+        '<label class="check"><input type="checkbox" name="splitGst"' + (s.splitGst !== false ? " checked" : "") + "><span>Show the CGST / SGST halves on the bill</span></label>" +
+        '<label class="field"><span>Note printed on every bill</span><input type="text" name="gstNote" value="' + esc(s.gstNote || "") + '"></label>' +
+        '<p class="small muted" style="margin:0 0 6px">With inclusive rates nothing is added at the bottom of the bill — the GST already inside the total is printed as a breakup, followed by this note.</p>' +
+        "</div></div>" +
+
+        '<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>Service charge</h3></div><div class="card-pad">' +
         '<label class="check"><input type="checkbox" name="serviceChargeEnabled"' + (s.serviceChargeEnabled ? " checked" : "") + "><span>Add a service charge</span></label>" +
         '<label class="field" style="max-width:220px"><span>Service charge %</span><input type="number" name="serviceChargePercent" min="0" max="100" step="0.5" value="' + s.serviceChargePercent + '"></label>' +
         "</div></div>" +

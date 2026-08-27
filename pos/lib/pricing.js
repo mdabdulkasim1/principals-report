@@ -3,6 +3,12 @@
  * Single source of truth for money. The browser shows a live preview using the
  * same rules, but every stored total is recomputed here so a tampered or stale
  * client can never decide what a bill is worth.
+ *
+ * GST works either way round:
+ *   inclusive (the default, and how most cafes here price)  — the menu rate
+ *     already contains GST, so nothing is added at the bottom of the bill and
+ *     the tax is shown as a breakup of the total.
+ *   exclusive — GST is calculated on top of the menu rate.
  */
 
 function money(n) {
@@ -30,17 +36,43 @@ function computeTotals(lines, order, settings) {
   let discount = type === "percent" ? (subtotal * Math.min(value, 100)) / 100 : value;
   discount = money(Math.min(discount, subtotal));
 
-  const taxable = money(subtotal - discount);
+  const afterDiscount = money(subtotal - discount);
 
   const scPercent = s.serviceChargeEnabled ? Math.max(0, Number(s.serviceChargePercent) || 0) : 0;
-  const serviceCharge = money((taxable * scPercent) / 100);
+  const serviceCharge = money((afterDiscount * scPercent) / 100);
 
   const taxPercent = s.taxEnabled ? Math.max(0, Number(s.taxPercent) || 0) : 0;
-  const tax = money(((taxable + serviceCharge) * taxPercent) / 100);
+  const inclusive = s.taxMode !== "exclusive";
+  const rounding = s.roundOff === false ? (n) => money(n) : (n) => Math.round(n);
 
-  const gross = money(taxable + serviceCharge + tax);
-  const total = s.roundOff === false ? gross : Math.round(gross);
-  const roundOff = money(total - gross);
+  let tax, total, roundOff, taxableValue;
+
+  if (!taxPercent) {
+    const gross = money(afterDiscount + serviceCharge);
+    total = money(rounding(gross));
+    tax = 0;
+    taxableValue = total;
+    roundOff = money(total - gross);
+  } else if (inclusive) {
+    // The rate already carries GST. Round first, then split the rounded total,
+    // so the breakup printed on the bill adds back up to what the guest pays.
+    const gross = money(afterDiscount + serviceCharge);
+    total = money(rounding(gross));
+    tax = money(total - total / (1 + taxPercent / 100));
+    taxableValue = money(total - tax);
+    roundOff = money(total - gross);
+  } else {
+    taxableValue = money(afterDiscount + serviceCharge);
+    tax = money((taxableValue * taxPercent) / 100);
+    const gross = money(taxableValue + tax);
+    total = money(rounding(gross));
+    roundOff = money(total - gross);
+  }
+
+  // CGST and SGST are half each, with any stray paisa left on the second half
+  // so the two always add up to the GST shown.
+  const cgst = money(tax / 2);
+  const sgst = money(tax - cgst);
 
   return {
     subtotal,
@@ -49,11 +81,15 @@ function computeTotals(lines, order, settings) {
     discount,
     serviceChargePercent: scPercent,
     serviceCharge,
-    taxName: s.taxName || "Tax",
+    taxName: s.taxName || "GST",
     taxPercent,
+    taxMode: taxPercent ? (inclusive ? "inclusive" : "exclusive") : "none",
     tax,
+    taxableValue,
+    cgst,
+    sgst,
     roundOff,
-    total: money(total),
+    total,
     itemCount: (lines || []).reduce((n, l) => n + clampQty(l.qty), 0),
   };
 }

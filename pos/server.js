@@ -288,7 +288,9 @@ async function handleApi(req, res, pathname, query) {
       const s = data.settings;
       const textKeys = ["cafeName", "cafeNameLocal", "tagline", "address", "phone", "gstin", "currency", "taxName", "footerNote", "printWidth"];
       for (const k of textKeys) if (k in body) s[k] = str(body[k], k === "footerNote" ? 200 : 120);
-      for (const k of ["taxEnabled", "serviceChargeEnabled", "roundOff", "showLocalNames", "printKotOnSave"]) {
+      if ("gstNote" in body) s.gstNote = str(body.gstNote, 200);
+      if ("taxMode" in body) s.taxMode = body.taxMode === "exclusive" ? "exclusive" : "inclusive";
+      for (const k of ["taxEnabled", "serviceChargeEnabled", "roundOff", "showLocalNames", "printKotOnSave", "splitGst"]) {
         if (k in body) s[k] = !!body[k];
       }
       for (const k of ["taxPercent", "serviceChargePercent"]) {

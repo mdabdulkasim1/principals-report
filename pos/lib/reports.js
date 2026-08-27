@@ -60,6 +60,7 @@ function buildReport(data, from, to) {
   let gross = 0;
   let discount = 0;
   let tax = 0;
+  let taxableValue = 0;
   let serviceCharge = 0;
   let itemsSold = 0;
 
@@ -68,6 +69,7 @@ function buildReport(data, from, to) {
     gross = round2(gross + (t.total || 0));
     discount = round2(discount + (t.discount || 0));
     tax = round2(tax + (t.tax || 0));
+    taxableValue = round2(taxableValue + (t.taxableValue !== undefined ? t.taxableValue : t.total || 0));
     serviceCharge = round2(serviceCharge + (t.serviceCharge || 0));
 
     bump(byPayment, (o.payment && o.payment.mode) || "Cash", t.total, 0);
@@ -108,6 +110,8 @@ function buildReport(data, from, to) {
       gross,
       discount,
       tax,
+      taxableValue,
+      taxMode: orders.length ? (orders[orders.length - 1].totals || {}).taxMode || "none" : "none",
       serviceCharge,
       itemsSold,
       average: orders.length ? round2(gross / orders.length) : 0,

@@ -15,9 +15,12 @@ const DEFAULT_SETTINGS = {
   phone: "",
   gstin: "",
   currency: "₹",
-  taxEnabled: false,
+  taxEnabled: true,
+  taxMode: "inclusive", // menu rates already contain GST — the usual way here
   taxName: "GST",
   taxPercent: 5,
+  splitGst: true,       // show the CGST / SGST halves on the bill
+  gstNote: "All prices shown above are inclusive of GST.",
   serviceChargeEnabled: false,
   serviceChargePercent: 0,
   roundOff: true,

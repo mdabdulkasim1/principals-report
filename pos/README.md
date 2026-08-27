@@ -122,10 +122,41 @@ Tamil names print as long as the machine has a Tamil font (Windows and Android
 both ship one). If Tamil looks wrong on a particular printer, turn off *Show
 Tamil names* in Settings and the bills print in English only.
 
+## GST
+
+GST is **on by default at 5%, with the menu rates treated as already including
+it** — the way most cafes here price. Nothing is added at the bottom of the
+bill: a tea marked ₹15 is billed at ₹15, and the bill shows the GST that is
+already inside that amount.
+
+```
+TOTAL                     ₹45.00
+--------------------------------
+GST breakup (included in the total)
+Taxable value              42.86
+CGST 2.5%                   1.07
+SGST 2.5%                   1.07
+--------------------------------
+All prices shown above are inclusive of GST.
+```
+
+The breakup always adds back up to the total the guest pays, to the paisa.
+
+In **Settings → GST & charges** you can:
+
+- switch between *rates already include GST* and *add GST on top of the rate*,
+- change the percentage (5% is the usual restaurant rate) and the name,
+- turn the CGST / SGST split off and print a single GST line instead,
+- edit the note printed on every bill — it reads *"All prices shown above are
+  inclusive of GST."* out of the box,
+- switch GST off altogether if you are not registered.
+
+Put your GSTIN in **Settings → Shop details** and it prints in the bill header.
+The dashboard and the day-close report both show the taxable value alongside
+the GST collected, so the figures are ready for a return.
+
 ## Settings worth knowing
 
-- **Tax** is off by default. Turn it on and set the name and percentage if you
-  bill GST.
 - **Round off** rounds the final total to the nearest rupee and prints the
   adjustment on the bill.
 - **Payment modes** is a plain comma-separated list — add "Swiggy" or "Zomato"

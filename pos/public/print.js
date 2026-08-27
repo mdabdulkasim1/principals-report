@@ -68,8 +68,27 @@
       add("Discount" + (t.discountType === "percent" ? " (" + t.discountValue + "%)" : ""), "-" + amt(t.discount));
     }
     if (t.serviceCharge > 0) add("Service charge (" + t.serviceChargePercent + "%)", amt(t.serviceCharge));
-    if (t.tax > 0) add((t.taxName || "Tax") + " (" + t.taxPercent + "%)", amt(t.tax));
+    // Exclusive GST is added on at the bottom; inclusive GST is already in the
+    // rates and is shown as a breakup underneath the total instead.
+    if (t.tax > 0 && t.taxMode !== "inclusive") {
+      add((t.taxName || "GST") + " (" + t.taxPercent + "%)", amt(t.tax));
+    }
     if (t.roundOff) add("Round off", (t.roundOff > 0 ? "+" : "") + amt(t.roundOff));
+
+    let gstBlock = "";
+    if (t.tax > 0 && t.taxMode === "inclusive") {
+      const name = t.taxName || "GST";
+      const half = t.taxPercent / 2;
+      gstBlock =
+        '<div class="sep"></div>' +
+        '<div class="b">' + esc(name) + " breakup (included in the total)</div>" +
+        "<table><tr><td>Taxable value</td><td class=\"r\">" + amt(t.taxableValue) + "</td></tr>" +
+        (s.splitGst !== false && t.cgst !== undefined
+          ? "<tr><td>CGST " + half + "%</td><td class=\"r\">" + amt(t.cgst) + "</td></tr>" +
+            "<tr><td>SGST " + half + "%</td><td class=\"r\">" + amt(t.sgst) + "</td></tr>"
+          : "<tr><td>" + esc(name) + " " + t.taxPercent + "%</td><td class=\"r\">" + amt(t.tax) + "</td></tr>") +
+        "</table>";
+    }
 
     const pay = o.payment || {};
     const html =
@@ -88,12 +107,19 @@
       lines +
       "</table>" +
       '<div class="sep"></div>' +
-      '<table><tr class="big"><td>TOTAL</td><td class="r">' + cur + amt(t.total) + "</td></tr>" +
-      (pay.mode ? "<tr><td>Paid by " + esc(pay.mode) + "</td><td class=\"r\">" + amt(pay.received || t.total) + "</td></tr>" : "") +
-      (pay.change > 0 ? "<tr><td>Change</td><td class=\"r\">" + amt(pay.change) + "</td></tr>" : "") +
-      "</table>" +
+      '<table><tr class="big"><td>TOTAL</td><td class="r">' + cur + amt(t.total) + "</td></tr></table>" +
+      gstBlock +
+      (pay.mode
+        ? '<div class="sep"></div><table>' +
+          "<tr><td>Paid by " + esc(pay.mode) + "</td><td class=\"r\">" + amt(pay.received || t.total) + "</td></tr>" +
+          (pay.change > 0 ? "<tr><td>Change</td><td class=\"r\">" + amt(pay.change) + "</td></tr>" : "") +
+          "</table>"
+        : "") +
       '<div class="sep"></div>' +
       '<div class="c">' + esc(t.itemCount || 0) + " item(s)" +
+      (t.tax > 0 && t.taxMode === "inclusive" && s.gstNote
+        ? '<div class="b">' + esc(s.gstNote) + "</div>"
+        : "") +
       (o.note ? "<div>" + esc(o.note) + "</div>" : "") +
       (s.footerNote ? "<div>" + esc(s.footerNote) + "</div>" : "") +
       (opts && opts.reprint ? '<div class="b">** REPRINT **</div>' : "") +
@@ -163,12 +189,16 @@
       "<tr><td>Items sold</td><td class=\"r\">" + t.itemsSold + "</td></tr>" +
       "<tr><td>Average bill</td><td class=\"r\">" + amt(t.average) + "</td></tr>" +
       "<tr><td>Discounts</td><td class=\"r\">" + amt(t.discount) + "</td></tr>" +
-      (t.tax ? "<tr><td>Tax collected</td><td class=\"r\">" + amt(t.tax) + "</td></tr>" : "") +
+      (t.tax
+        ? "<tr><td>Taxable value</td><td class=\"r\">" + amt(t.taxableValue) + "</td></tr>" +
+          "<tr><td>" + esc(s.taxName || "GST") + " collected</td><td class=\"r\">" + amt(t.tax) + "</td></tr>"
+        : "") +
       "<tr><td>Cancelled</td><td class=\"r\">" + t.cancelledCount + " / " + amt(t.cancelledValue) + "</td></tr>" +
       (t.openCount ? "<tr><td>Still running</td><td class=\"r\">" + t.openCount + " / " + amt(t.openValue) + "</td></tr>" : "") +
       "</table>" +
       '<div class="sep"></div>' +
       '<table><tr class="big"><td>NET SALES</td><td class="r">' + cur + amt(t.gross) + "</td></tr></table>" +
+      (t.tax && t.taxMode === "inclusive" ? '<div class="c">(GST included in the figure above)</div>' : "") +
       block("Payments", report.byPayment) +
       block("Order type", report.byMode) +
       block("Counter staff", report.byStaff) +
