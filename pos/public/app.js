@@ -339,8 +339,7 @@
       "<br>" + esc(S.user.name) + "</div>" +
       "</header>" +
       '<div class="content" id="screen"><div class="empty">Loading…</div></div>' +
-      "</div></div>" +
-      '<div id="print-area"></div>';
+      "</div></div>";
   }
 
   function screen() {
@@ -1531,7 +1530,13 @@
   function paintGstinHint(info) {
     const el = document.getElementById("gstin-hint");
     if (!el) return;
-    if (!info || info.empty) { el.innerHTML = ""; return; }
+    if (!info || info.empty) {
+      // Optional on purpose — plenty of shops are still waiting for the number.
+      el.innerHTML = S.settings.taxEnabled
+        ? '<span class="muted">Not added yet — bills print without it. Add it here whenever it comes through.</span>'
+        : "";
+      return;
+    }
     if (info.typing) {
       el.innerHTML = '<span class="muted">' + info.len + " of 15 characters…</span>";
     } else if (info.pending) {

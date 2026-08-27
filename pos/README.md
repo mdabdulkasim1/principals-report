@@ -151,7 +151,12 @@ In **Settings → GST & charges** you can:
   inclusive of GST."* out of the box,
 - switch GST off altogether if you are not registered.
 
-Put your GSTIN in **Settings → Shop details** and it prints in the bill header.
+The GSTIN is **optional and starts empty** — bills print perfectly well
+without it, so you can run the counter today and drop the number in whenever
+your registration comes through. Put it in **Settings → Shop details** and it
+prints in the bill header from the next bill onward; nothing else needs
+changing and past bills are untouched.
+
 The field checks what you type: it upper-cases it, refuses anything that is not
 a real GSTIN shape (15 characters, `33AAAAA0000A1Z5`), confirms the state it is
 registered in, and verifies the final check digit. A check-digit mismatch is

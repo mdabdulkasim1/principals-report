@@ -30,7 +30,13 @@
     );
   }
   function paint(html, widthClass) {
-    const host = document.getElementById("print-area");
+    let host = document.getElementById("print-area");
+    if (!host) {
+      // It lives outside #app in index.html; recreate it if a page ever lacks it.
+      host = document.createElement("div");
+      host.id = "print-area";
+      document.body.appendChild(host);
+    }
     host.className = "";
     host.innerHTML = '<div class="receipt ' + (widthClass || "") + '">' + html + "</div>";
     // Let the browser lay the node out before opening the print dialog.
