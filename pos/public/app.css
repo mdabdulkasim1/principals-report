@@ -175,6 +175,7 @@ table.grid tbody tr:hover { background: #fdfaf5; }
 }
 .toast.bad { background: var(--red); }
 .toast.good { background: var(--green); }
+.toast.warn { background: var(--amber); max-width: min(560px, 92vw); border-radius: 14px; line-height: 1.5; }
 @keyframes pop { from { opacity: 0; transform: translateY(8px); } }
 
 .modal-host { position: fixed; inset: 0; background: rgba(27, 25, 23, .5); display: grid; place-items: center; z-index: 150; padding: 20px; }

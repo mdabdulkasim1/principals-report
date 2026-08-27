@@ -152,6 +152,12 @@ In **Settings → GST & charges** you can:
 - switch GST off altogether if you are not registered.
 
 Put your GSTIN in **Settings → Shop details** and it prints in the bill header.
+The field checks what you type: it upper-cases it, refuses anything that is not
+a real GSTIN shape (15 characters, `33AAAAA0000A1Z5`), confirms the state it is
+registered in, and verifies the final check digit. A check-digit mismatch is
+flagged as a warning rather than blocked — your certificate is the last word,
+but it almost always means a typo, so compare the two before carrying on.
+
 The dashboard and the day-close report both show the taxable value alongside
 the GST collected, so the figures are ready for a return.
 

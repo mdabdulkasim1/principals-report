@@ -82,7 +82,7 @@
     el.className = "toast " + (kind || "");
     el.textContent = message;
     host.appendChild(el);
-    setTimeout(() => el.remove(), kind === "bad" ? 4200 : 2400);
+    setTimeout(() => el.remove(), kind === "bad" ? 4200 : kind === "warn" ? 8000 : 2400);
   }
 
   /* ================================================================== */
@@ -233,6 +233,7 @@
     const data = await api("/bootstrap");
     S.user = data.user;
     S.settings = data.settings;
+    S.gstinInfo = data.gstinInfo || null;
     S.categories = data.categories.filter((c) => c.active !== false);
     S.items = data.items;
     S.tables = data.tables;
@@ -1458,8 +1459,12 @@
         '<label class="field"><span>Tagline</span><input type="text" name="tagline" value="' + esc(s.tagline) + '"></label>' +
         '<label class="field"><span>Address</span><input type="text" name="address" value="' + esc(s.address) + '"></label>' +
         '<div class="row"><label class="field"><span>Phone</span><input type="text" name="phone" value="' + esc(s.phone) + '"></label>' +
-        '<label class="field"><span>GSTIN (optional)</span><input type="text" name="gstin" value="' + esc(s.gstin) + '"></label>' +
         '<label class="field"><span>Currency symbol</span><input type="text" name="currency" maxlength="3" value="' + esc(s.currency) + '"></label></div>' +
+        '<label class="field"><span>GSTIN</span>' +
+        '<input type="text" name="gstin" id="gstin-input" maxlength="20" autocapitalize="characters" spellcheck="false" ' +
+        'placeholder="33AAAAA0000A1Z5" value="' + esc(s.gstin) + '"></label>' +
+        '<div id="gstin-hint" class="small" style="margin:-8px 0 12px"></div>' +
+        '<p class="small muted" style="margin:0">Leave this empty if you are not GST registered. It prints in the bill header.</p>' +
         "</div></div>" +
 
         '<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>Bill &amp; printing</h3></div><div class="card-pad">' +
@@ -1504,6 +1509,41 @@
 
     const form = document.getElementById("settings-form");
     if (form) form.addEventListener("submit", (e) => { e.preventDefault(); saveSettings(form); });
+
+    const gstinField = document.getElementById("gstin-input");
+    if (gstinField) {
+      paintGstinHint(S.gstinInfo);
+      gstinField.addEventListener("input", () => {
+        const v = gstinField.value.replace(/[\s-]/g, "").toUpperCase();
+        gstinField.value = v;
+        // Only the shape can be judged here; the check digit is the server's call.
+        if (!v) return paintGstinHint(null);
+        if (v.length < 15) return paintGstinHint({ typing: true, len: v.length });
+        if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(v)) {
+          return paintGstinHint({ ok: false, error: "That is not the GSTIN pattern (22AAAAA0000A1Z5)." });
+        }
+        paintGstinHint({ pending: true });
+      });
+    }
+  }
+
+  /** Shows what the server made of the GSTIN — its state, or what looks wrong. */
+  function paintGstinHint(info) {
+    const el = document.getElementById("gstin-hint");
+    if (!el) return;
+    if (!info || info.empty) { el.innerHTML = ""; return; }
+    if (info.typing) {
+      el.innerHTML = '<span class="muted">' + info.len + " of 15 characters…</span>";
+    } else if (info.pending) {
+      el.innerHTML = '<span class="muted">Looks right — save to check it fully.</span>';
+    } else if (info.ok === false) {
+      el.innerHTML = '<span style="color:var(--red)">✕ ' + esc(info.error) + "</span>";
+    } else if (!info.checksumOk) {
+      el.innerHTML = '<span style="color:var(--amber)">⚠ ' + esc(info.warning) + "</span>";
+    } else {
+      el.innerHTML = '<span style="color:var(--green)">✓ Valid GSTIN' +
+        (info.state ? " · registered in " + esc(info.state) : "") + "</span>";
+    }
   }
 
   const saveSettings = guard(async function (form) {
@@ -1516,8 +1556,11 @@
     body.serviceChargePercent = Number(body.serviceChargePercent) || 0;
     const out = await api("/settings", { method: "PUT", body });
     S.settings = out.settings;
+    S.gstinInfo = out.gstinInfo || null;
     document.title = (S.settings.cafeName || "Cafe") + " POS";
     toast("Settings saved", "good");
+    if (S.gstinInfo && S.gstinInfo.warning) toast(S.gstinInfo.warning, "warn");
+    else if (S.gstinInfo && S.gstinInfo.stateWarning) toast(S.gstinInfo.stateWarning, "warn");
     renderShell();
     renderSettings();
   });

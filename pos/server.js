@@ -21,6 +21,7 @@ const auth = require("./lib/auth");
 const { seedIfEmpty } = require("./lib/seed");
 const { computeTotals, money, clampQty } = require("./lib/pricing");
 const { buildReport, ordersToCsv, dateKey, todayKey } = require("./lib/reports");
+const gstin = require("./lib/gstin");
 
 const PORT = process.env.PORT || 3100;
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -271,6 +272,7 @@ async function handleApi(req, res, pathname, query) {
     return send(res, 200, {
       user: publicUser(me),
       settings: data.settings,
+      gstinInfo: gstin.validate(data.settings.gstin),
       categories: data.categories.slice().sort((a, b) => a.sort - b.sort),
       items: data.items.slice().sort((a, b) => a.sort - b.sort),
       tables: data.tables.slice().sort((a, b) => a.sort - b.sort),
@@ -281,14 +283,22 @@ async function handleApi(req, res, pathname, query) {
 
   /* ---------- settings ---------- */
   if (route[0] === "settings") {
-    if (method === "GET") return send(res, 200, { settings: data.settings });
+    if (method === "GET") {
+      return send(res, 200, { settings: data.settings, gstinInfo: gstin.validate(data.settings.gstin) });
+    }
     if (method === "PUT") {
       if (needAdmin()) return;
       const body = await readBody(req);
       const s = data.settings;
-      const textKeys = ["cafeName", "cafeNameLocal", "tagline", "address", "phone", "gstin", "currency", "taxName", "footerNote", "printWidth"];
+      const textKeys = ["cafeName", "cafeNameLocal", "tagline", "address", "phone", "currency", "taxName", "footerNote", "printWidth"];
       for (const k of textKeys) if (k in body) s[k] = str(body[k], k === "footerNote" ? 200 : 120);
       if ("gstNote" in body) s.gstNote = str(body.gstNote, 200);
+      let gstinCheck = gstin.validate(s.gstin);
+      if ("gstin" in body) {
+        gstinCheck = gstin.validate(body.gstin);
+        if (!gstinCheck.ok) return sendError(res, 400, gstinCheck.error);
+        s.gstin = gstinCheck.value;
+      }
       if ("taxMode" in body) s.taxMode = body.taxMode === "exclusive" ? "exclusive" : "inclusive";
       for (const k of ["taxEnabled", "serviceChargeEnabled", "roundOff", "showLocalNames", "printKotOnSave", "splitGst"]) {
         if (k in body) s[k] = !!body[k];
@@ -302,7 +312,7 @@ async function handleApi(req, res, pathname, query) {
       }
       if (s.printWidth !== "58mm") s.printWidth = "80mm";
       db.save();
-      return send(res, 200, { settings: s });
+      return send(res, 200, { settings: s, gstinInfo: gstinCheck });
     }
   }
 
