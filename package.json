@@ -4,7 +4,8 @@
   "description": "Multi-school Monthly Principal Academic Report portal (Chairman + Principals)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "pos": "node pos/server.js"
   },
   "engines": {
     "node": ">=18"
