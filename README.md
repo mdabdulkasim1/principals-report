@@ -95,24 +95,16 @@ public/
   app.js             SPA: login, routing, dashboard, reports, admin
   report-form.js     the reusable 13-section report form
   charts.js          dependency-free SVG line/bar charts
-
-pos/                 Coffeemia cafe POS — a separate app in this repo
 ```
 
 ---
 
-## Also in this repository: Coffeemia POS
+## Looking for the Coffeemia cafe POS?
 
-`pos/` holds a self-contained point-of-sale app for the cafe — table-wise
-orders, kitchen tickets, printed bills, an editable menu and rates, a sales
-dashboard, and admin / counter-staff logins. It shares nothing with the report
-portal and runs on its own port:
-
-```bash
-npm run pos          # http://localhost:3100
-```
-
-See **[pos/README.md](pos/README.md)** for the full guide.
+It moved to its own repository:
+**[mdabdulkasim1/COFFEEMIA](https://github.com/mdabdulkasim1/COFFEEMIA)**.
+It was briefly kept here under `pos/`; that copy is gone so there is only one
+place to edit and deploy it from.
 
 ---
 
