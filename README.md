@@ -99,52 +99,56 @@ public/
 
 ---
 
-## Looking for the Coffeemia cafe POS?
+## Deploying on Railway.com with MySQL Database
 
-It moved to its own repository:
-**[mdabdulkasim1/COFFEEMIA](https://github.com/mdabdulkasim1/COFFEEMIA)**.
-It was briefly kept here under `pos/`; that copy is gone so there is only one
-place to edit and deploy it from.
+This application uses **MySQL** as its database storage engine with automatic versioned schema migrations and default account seeding.
+
+### Step 1: Deploy to Railway
+1. Push your repository to GitHub.
+2. Log into [Railway.com](https://railway.com) and create a **New Project**.
+3. Choose **Deploy from GitHub repo** and select this repository.
+
+### Step 2: Configure MySQL Database
+You can connect to a MySQL database on Railway in two ways:
+
+#### Option A: Using Railway MySQL Service (Recommended)
+1. In your Railway project canvas, click **+ New** → **Database** → **MySQL**.
+2. Railway will automatically link the MySQL service and inject the `MYSQL_URL` variable into your app service.
+3. Your app will automatically connect, execute migrations, and seed initial accounts!
+
+#### Option B: Using Custom Remote MySQL Database
+In your Railway App Service → **Variables**, set the following environment variables:
+- `MYSQLHOST` = `your-database-host`
+- `MYSQLPORT` = `3306`
+- `MYSQLUSER` = `your-database-username`
+- `MYSQLPASSWORD` = `your-database-password`
+- `MYSQLDATABASE` = `your-database-name`
+
+*(Alternatively, set `MYSQL_URL` or `DATABASE_URL` = `mysql://user:pass@host:3306/dbname`)*
+
+### Environment Variables Reference
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | HTTP port provided by Railway | `3022` |
+| `MYSQL_URL` / `DATABASE_URL` | Full MySQL Connection String | — |
+| `MYSQLHOST` / `MYSQL_HOST` / `DB_HOST` | MySQL Server Hostname | `localhost` |
+| `MYSQLPORT` / `MYSQL_PORT` / `DB_PORT` | MySQL Server Port | `3306` |
+| `MYSQLUSER` / `MYSQL_USER` / `DB_USER` | MySQL Username | `root` |
+| `MYSQLPASSWORD` / `MYSQL_PASSWORD` / `DB_PASSWORD` | MySQL Password | `""` |
+| `MYSQLDATABASE` / `MYSQL_DATABASE` / `DB_NAME` | MySQL Database Name | `akbgroups_principal_report` |
 
 ---
 
-## Deploying so principals can log in from their schools
+### First-Run Default Accounts
 
-The app is a single Node process; host it anywhere that runs Node 18+. It reads
-`PORT` from the environment (Railway/Render/Fly set this automatically), so no
-extra config is needed to boot.
+Upon initial database migration and deployment, the following default accounts are automatically created:
 
-### ⚠️ Railway (and any container host): make data persistent
+| Role | Username | Default Password | Initial Scope |
+|------|----------|------------------|---------------|
+| Chairman (Admin) | `chairman` | `Chairman@123` | All Schools |
+| Principal | `principal.akb` | `Principal@123` | AKB School of Excellence |
+| Principal | `principal.school2` | `Principal@123` | Second School |
 
-Container filesystems are **ephemeral** — by default `data/db.json` is **wiped
-on every redeploy or restart**, which means all reports, user accounts and
-generated logins would reset to the seed defaults. To keep your data:
+> **Note**: Change default passwords after your first login.
 
-1. In Railway, open your service → **Variables** and add a **Volume** (Railway →
-   service → **Settings → Volumes → Add Volume**). Mount it at, for example,
-   `/data`.
-2. Add these environment **Variables**:
-   - `DATA_DIR=/data` (must match the volume mount path)
-   - `SECURE_COOKIE=1` (served over HTTPS, so the session cookie is marked `Secure`)
-3. Redeploy. From now on the database lives on the volume and survives redeploys.
-
-> Do this **before** you start entering real reports or creating principal
-> accounts — otherwise the next deploy will erase them. The seed accounts are
-> only created once, when the database is empty; on a persistent volume your
-> changed passwords and added users stick.
-
-### Other hosts
-
-- Put it behind HTTPS (a reverse proxy such as Nginx/Caddy, or a platform like
-  Render/Fly).
-- Set `SECURE_COOKIE=1` when served over HTTPS.
-- Point `DATA_DIR` at persistent storage (a mounted volume or a path that
-  survives restarts).
-
-No database server or build step required.
-
-### First-login note
-
-Sessions are held in server memory, so a restart or redeploy signs everyone out
-(they just log back in). With a persistent `DATA_DIR`, all accounts and reports
-remain intact across restarts — only the active login sessions reset.

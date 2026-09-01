@@ -4,11 +4,26 @@
   "description": "Multi-school Monthly Principal Academic Report portal (Chairman + Principals)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "prestart": "npm run db:setup",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node scripts/seed.js",
+    "db:setup": "npm run migrate && npm run seed",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:restart": "pm2 restart ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:logs": "pm2 logs principal-report",
+    "deploy": "bash deploy.sh"
   },
   "engines": {
     "node": ">=18"
   },
   "license": "UNLICENSED",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.23.4"
+  }
 }
