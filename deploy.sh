@@ -70,7 +70,7 @@ echo "[3/7] Configuring .env file..."
 cat <<EOF > "${APP_DIR}/.env"
 PORT=${PORT}
 NODE_ENV=production
-
+ 
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=${DB_USER}
